@@ -46,6 +46,16 @@ nav.side .sep{height:1px;background:var(--line);margin:8px 10px}
 main{padding:20px 26px 70px;min-width:0}
 .view-head h2{font-size:24px;line-height:1.2;margin:0 0 4px;font-weight:600}
 .view-head p{margin:0 0 16px;color:var(--muted);max-width:74ch}
+.about{max-width:80ch;line-height:1.65}
+.about h2{font:600 19px/1.3 var(--head);margin:26px 0 8px}
+.about h2:first-of-type{margin-top:6px}
+.about p,.about ul{margin:0 0 12px}
+.about ul{padding-left:20px}
+.about li{margin:0 0 6px}
+.about code{font-size:.92em;background:var(--hl-soft);padding:1px 5px;border-radius:4px}
+.about .tablewrap{margin:4px 0 14px}
+.about table.t td:first-child{white-space:nowrap;font-weight:600}
+.about a{overflow-wrap:anywhere;color:var(--green)}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;margin:0 0 16px}
 .panel h3{font-size:16px;line-height:1.3;margin:0 0 8px;font-weight:600}
 .panel > h3 + .hint{margin-top:-4px}
@@ -380,12 +390,10 @@ const MG_SUF = ['maarude','marude','kalude','ngalude','nteyum','yilekku','ilekku
 const CHILLU_BASE = {'\u0D7A':'\u0D23','\u0D7B':'\u0D28','\u0D7C':'\u0D30','\u0D7D':'\u0D32','\u0D7E':'\u0D33','\u0D7F':'\u0D15'};
 
 const STARTER_LISTS = [
-  {name:'Stigma and labelling', terms:'drunkard\ndrunk\nboozer\naddict\naddicts\nalcoholic\nalcoholics\nkudiya*\nകുടിയൻ\nകുടിയന്*\nകുടിയനെ\nകുടിയനായി\nമുഴുക്കുടിയൻ'},
-  {name:'Disease and treatment', terms:'disease\nillness\ndisorder\ndependence\ntreatment\nde-addiction\nwithdrawal\nrehab*\ntherapy\ncounsel*\ndoctor*\nhospital*\nmedical\nരോഗ*\nമദ്യാസക്തി\nചികിത്സ*\nആശുപത്രി*\nഡോക്ടർ*\nലഹരിവിമുക്തി*\ntreatment'},
-  {name:'Moral framing', terms:'moral\nweak*\nshame*\nsin\nsinful\nwillpower\ncharacter\nirresponsible\nlazy\ndisgrace\nനാണക്കേട്*\nഅപമാന*\nപാപ*\nകുറ്റപ്പെടുത്ത*\nnanakked*'},
-  {name:'Recovery and support', terms:'recover*\nsober*\nquit\nstopped\nabstinen*\nalcoholics anonymous\nsupport*\nhope*\nമോചന*\nമുക്തി\nനിർത്ത*\nപ്രതീക്ഷ*\nപിന്തുണ*\nnirthi\nnirthan'},
-  {name:'Family and home', terms:'family\nfamilies\nwife\nhusband\nchildren\nmother\nfather\nson\ndaughter\nhome\nrelatives\nകുടുംബ*\nഭാര്യ*\nഭർത്താവ്*\nമക്കൾ*\nഅമ്മ*\nഅച്ഛ*\nവീട്*\nveed*\nveett*\nmakan\nmakal\nbharya'},
-  {name:'Cinema and media', terms:'film*\nmovie*\ncinema*\nscene*\nactor*\nhero*\ncomedy\nscreen\nസിനിമ*\nനായക*\nരംഗ*\npadam\ncinemayil'}
+  {name:'Positive feeling', terms:'good\nhappy\nglad\nhope*\nrelie*\nproud\nenjoy*\ngrateful\nനല്ല\nസന്തോഷ*\nആശ്വാസ*\nപ്രതീക്ഷ*\nഇഷ്ട*\nnalla\nsanthosh*\nishtam'},
+  {name:'Negative feeling', terms:'bad\nsad\nangry\nfear*\nworr*\nstress*\nupset\nashamed\nപേടി*\nവിഷമ*\nസങ്കട*\nദേഷ്യ*\npedi\nvishamam\nsankadam\ntension'},
+  {name:'Uncertainty', terms:'maybe\nperhaps\nmight\nprobably\nunsure\nnot sure\ni think\nചിലപ്പോൾ\nഒരുപക്ഷേ\nതോന്നുന്നു\nchilappo\nthonnunnu'},
+  {name:'Certainty', terms:'always\nnever\ndefinitely\ncertainly\nclearly\nof course\nഎപ്പോഴും\nഒരിക്കലും\nതീർച്ചയായും\nഉറപ്പ്*\nurappu\ntheerchayayum'}
 ];
 
 const SAMPLE = [
@@ -551,57 +559,10 @@ function load(){
 function ensureGroups(){ for (const d of S.docs) if (d.group && S.groups.indexOf(d.group) < 0) S.groups.push(d.group); }
 function changed(silent){ ensureGroups(); purge(); persistSoon(); if (!silent) render(); }
 
-/* ================= examples drawn from the loaded data ================= */
-// Help text and placeholders use words from the user's own responses, so the hints fit any study.
-const ML_SIGN = /[\u0D00-\u0D03\u0D3B\u0D3C\u0D3E-\u0D4D\u0D57\u0D62\u0D63\u200C\u200D]/;
-const EX_DEFAULT = {en:['help', 'support', 'learning'], ml:['സഹായം', 'കുടുംബം'], stem:'learn*', mlStem:'പഠി*', forms:['പഠിക്കാൻ', 'പഠിച്ചു', 'പഠിക്കും'], head:'പഠിക്കുക', fromData:false};
-function sharedStem(forms, minLen){
-  const cs = forms.map(f => Array.from(f));
-  let k = 0; while (cs.every(c => k < c.length && c[k] === cs[0][k])) k++;
-  while (k > 0 && (cs.some(c => k < c.length && ML_SIGN.test(c[k])) || cs[0][k - 1] === '\u0D4D' || cs[0][k - 1] === '\u200D')) k--;
-  return k >= minLen ? cs[0].slice(0, k).join('') : '';
-}
-function bestFamily(words, counts, keyFn, minLen){
-  const fam = new Map();
-  for (const w of words) { const k = keyFn(w); if (!k) continue; if (!fam.has(k)) fam.set(k, []); fam.get(k).push(w); }
-  let best = null, bestN = 0;
-  for (const forms of fam.values()) {
-    if (forms.length < 2) continue;
-    const stem = sharedStem(forms, minLen); if (!stem) continue;
-    const n = forms.reduce((a, w) => a + counts.get(w), 0);
-    if (n > bestN) { bestN = n; best = {stem, forms:forms.slice().sort((a, b) => counts.get(b) - counts.get(a))}; }
-  }
-  return best;
-}
-const EX_SKIP = new Set('asked said says used using uses think thought feel felt make made makes gave give gives took take takes came come know knew want wanted need needed tell told like also just really even much many more most very still every always never some other others something anything everything because though actually honestly maybe first last time times thing things people week sometimes mostly only would could should well while after before again into than then them they their there these those where which while what when your yours ours mine have having being been were with from that this'.split(' '));
-let EXC = null;
-function examples(){
-  let len = 0; for (const d of S.docs) len += d.text.length;
-  const key = S.docs.length + ':' + len;
-  if (EXC && EXC.key === key) return EXC.ex;
-  const en = new Map(), ml = new Map();
-  for (const d of S.docs) {
-    prep(d); const manglish = langOf(d) === 'Manglish';
-    for (const t of d._tok) {
-      if (t.sc === 'n' || STOP.has(t.w)) continue;
-      if (t.sc === 'm') { if (cpLen(t.w) >= 3) ml.set(t.w, (ml.get(t.w) || 0) + 1); }
-      else if (!manglish && t.w.length >= 4 && !MG_MARK.has(t.w) && !EX_SKIP.has(t.w) && /^[a-z][a-z'-]*$/.test(t.w)) en.set(t.w, (en.get(t.w) || 0) + 1);
-    }
-  }
-  const top = m => Array.from(m.entries()).sort((a, b) => b[1] - a[1]).map(x => x[0]);
-  const E = top(en), M = top(ml);
-  const ex = Object.assign({}, EX_DEFAULT, {fromData: E.length + M.length > 0});
-  if (E.length) ex.en = E.concat(EX_DEFAULT.en.filter(w => E.indexOf(w) < 0)).slice(0, 3);
-  if (M.length) ex.ml = M.concat(EX_DEFAULT.ml.filter(w => M.indexOf(w) < 0)).slice(0, 2);
-  const ef = bestFamily(E.slice(0, 400), en, w => w.length >= 5 ? w.slice(0, 5) : '', 4);
-  if (ef) ex.stem = ef.stem + '*'; else if (E.length) ex.stem = E[0] + '*';
-  const mlKeyOf = w => { const cs = Array.from(w); for (let k = 3; k < cs.length; k++) if (!ML_SIGN.test(cs[k]) && cs[k - 1] !== '\u0D4D') return cs.slice(0, k).join(''); return ''; };
-  const mf = bestFamily(M.slice(0, 400), ml, mlKeyOf, 2);
-  if (mf) { ex.mlStem = mf.stem + '*'; ex.forms = mf.forms.slice(0, 3); ex.head = mf.forms.slice().sort((a, b) => cpLen(a) - cpLen(b))[0]; }
-  else if (M.length) ex.mlStem = M[0] + '*';
-  EXC = {key, ex};
-  return ex;
-}
+/* ================= generic examples for help text ================= */
+// Fixed everyday words, so hints never point to any one study or dataset.
+const EX = {en:['home', 'house', 'friend'], ml:['വീട്', 'സുഹൃത്ത്'], stem:'work*', mlStem:'പറ*', forms:['വീട്', 'വീട്ടിൽ', 'വീടിന്റെ'], head:'വീട്'};
+function examples(){ return EX; }
 const exAlt = ex => ex.en[0] + ' | ' + ex.en[1] + ' | ' + ex.ml[0];
 
 /* ================= corpus helpers ================= */
@@ -942,7 +903,8 @@ function diverging(items, o){
 }
 
 /* ================= rendering shell ================= */
-const VIEWS = [['data','Responses'],['overview','Overview'],'Lexical analysis',['freq','Word frequency'],['kwic','Concordance'],['colloc','Collocates'],['key','Keyness'],['lex','Word lists'],['disp','Dispersion'],['cooc','Co-occurrence'],'Coding',['code','Coding workspace'],['codebook','Codebook'],['segs','Coded segments'],['canal','Code analysis'],['memos','Memos & journal'],null,['forms','Word forms & stopwords']];
+const ABOUT_HTML = "<p>Offline lexical analysis and qualitative coding for Malayalam, Manglish and English text.</p>\n<p><strong>Source code and updates:</strong> <a href=\"https://github.com/sachinrajeevcodes/Vaakhu\" target=\"_blank\" rel=\"noopener\">github.com/sachinrajeevcodes/Vaakhu</a></p>\n<p>Vaakhu is a single-page tool for researchers working with open-ended survey answers and interview transcripts in Malayalam, in Malayalam typed in English letters (Manglish), and in English. It combines corpus-style lexical analysis with a qualitative coding workspace, and it runs entirely in your browser.</p>\n<p>It was built for a doctoral study on alcohol addiction and its portrayal in Malayalam cinema. That study needed tools that handle Malayalam word endings, mixed-language answers and responses collected both online and on paper.</p>\n<h2>Your data stays on your device</h2>\n<ul>\n<li>Vaakhu makes no network requests. Nothing you import or type is uploaded anywhere.</li>\n<li>Your project is saved in your browser's local storage on the device you are using.</li>\n<li>Use <strong>Save project</strong> to keep a backup file, and to move your work between devices.</li>\n<li>Exported files contain your research data, so store them as your ethics approval requires.</li>\n</ul>\n<h2>Getting started</h2>\n<p><strong>Online:</strong> open <a href=\"https://sachinrajeevcodes.github.io/Vaakhu/\" target=\"_blank\" rel=\"noopener\">https://sachinrajeevcodes.github.io/Vaakhu/</a> in Chrome, Edge or Safari. On a phone, use Share → Add to Home Screen to get an app icon.</p>\n<p><strong>Offline:</strong> download <code>index.html</code> and open it in Chrome or Edge on your computer.</p>\n<p>File previews, such as the iPhone Files app, switch JavaScript off and cannot run Vaakhu. Open it in a browser instead.</p>\n<p>To explore before importing real data, go to <strong>Responses → Sample data</strong>. It loads twelve made-up answers, example word lists and a small demo codebook.</p>\n<h2>Bringing data in</h2>\n<ul>\n<li><strong>Spreadsheets:</strong> import a CSV, for example from Google Sheets (File → Download → Comma-separated values). You choose which columns hold answers, and where the participant ID, group and item come from.</li>\n<li><strong>Paper forms:</strong> type or paste answers. Ctrl + Enter adds one and keeps the ID, group and item ready for the next.</li>\n<li><strong>Interview transcripts:</strong> import plain-text (.txt) files, one per interview.</li>\n</ul>\n<p>Each answer becomes one response, tagged with a group, item, language and mode (online, paper or transcript). Language is detected automatically and can be corrected by hand.</p>\n<h2>Handling Malayalam and Manglish</h2>\n<ul>\n<li><strong>Normalisation:</strong> text is converted to a standard Unicode form, and old-style chillu sequences (for example ന് + zero-width joiner) are treated as the same letter as atomic chillus (ൻ). The same word typed on different keyboards therefore counts once.</li>\n<li><strong>Word forms:</strong> Malayalam attaches endings to words, so കുടിയൻ, കുടിയന്റെ and കുടിയനെ would otherwise count as three words. Vaakhu suggests likely groupings for Malayalam, Manglish and English endings, and you approve each one.</li>\n<li><strong>Stopwords:</strong> separate editable lists for English, Malayalam and Manglish. Negations (no, not, ഇല്ല, അല്ല, illa, alla) are left off on purpose, because they matter when reading attitudes.</li>\n</ul>\n<h2>Lexical analysis</h2>\n<div class=\"tablewrap\"><table class=\"t\">\n<thead>\n<tr>\n<th>View</th>\n<th>What it does</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>Overview</td>\n<td>Responses, words, unique words, type-token ratio and standardised type-token ratio (per 100 words) by group</td>\n</tr>\n<tr>\n<td>Word frequency</td>\n<td>Words and 2–4 word phrases, counts per 1,000 words by group, as a table, chart or word cloud</td>\n</tr>\n<tr>\n<td>Concordance</td>\n<td>Every occurrence of a search term in context. Supports <code>*</code> and <code>?</code> wildcards, alternatives with <code>|</code>, regular expressions, a \"nearby word\" filter and sorting by neighbouring words</td>\n</tr>\n<tr>\n<td>Collocates</td>\n<td>Words that occur near a search term, ranked by logDice, mutual information, T-score or log-likelihood</td>\n</tr>\n<tr>\n<td>Keyness</td>\n<td>Words one group, language, item or mode uses more or less than another, with log-likelihood significance and log ratio</td>\n</tr>\n<tr>\n<td>Word lists</td>\n<td>Your own categories of terms (for example words for a feeling, a stance or a topic) counted by group. Four general example lists are included</td>\n</tr>\n<tr>\n<td>Dispersion</td>\n<td>Where a term appears across responses, with DP and normalised DP</td>\n</tr>\n<tr>\n<td>Co-occurrence</td>\n<td>How often chosen terms appear together in a response, a sentence or a window of words</td>\n</tr>\n</tbody>\n</table></div>\n<h2>Qualitative coding</h2>\n<div class=\"tablewrap\"><table class=\"t\">\n<thead>\n<tr>\n<th>View</th>\n<th>What it does</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>Coding workspace</td>\n<td>Select words in a response and apply codes. Keys 1–9 apply codes, and <code>[</code> <code>]</code> move between responses. Star essential passages, add memos to passages, and write a wholistic statement for each response. A line-by-line mode supports detailed reading</td>\n</tr>\n<tr>\n<td>Codebook</td>\n<td>Themes and codes with definitions, include and exclude rules and example quotes. Merge or delete codes, and import or export the codebook as CSV</td>\n</tr>\n<tr>\n<td>Coded segments</td>\n<td>All passages for a code or theme side by side, filterable to essential passages</td>\n</tr>\n<tr>\n<td>Code analysis</td>\n<td>Codes by group (passages, % of responses, or passages per response) and a code co-occurrence matrix</td>\n</tr>\n<tr>\n<td>Memos &amp; journal</td>\n<td>Dated analytic memos and a reflexive journal, plus all wholistic statements in one place</td>\n</tr>\n</tbody>\n</table></div>\n<p>The wholistic, selective and line-by-line views follow van Manen's three approaches to isolating themes in hermeneutic phenomenology.</p>\n<h2>Exports</h2>\n<p>Every table and list downloads as a UTF-8 CSV that opens in Excel with Malayalam intact. The whole project, including responses, codes, passages, memos, word lists and settings, saves as a single JSON file.</p>\n<h2>Statistics used</h2>\n<ul>\n<li><strong>Normalised frequency:</strong> occurrences per 1,000 words.</li>\n<li><strong>Log-likelihood (G²):</strong> Dunning (1993), applied to corpus comparison following Rayson and Garside (2000). Critical values: 3.84 (p &lt; .05), 6.63 (p &lt; .01), 10.83 (p &lt; .001), 15.13 (p &lt; .0001).</li>\n<li><strong>Log ratio:</strong> the binary log of the ratio of relative frequencies (Hardie, 2014).</li>\n<li><strong>Collocation:</strong> mutual information, T-score, log-likelihood and logDice (Rychlý, 2008).</li>\n<li><strong>Dispersion:</strong> deviation of proportions, DP (Gries, 2008).</li>\n</ul>\n<p>With small samples, treat every statistic as a pointer to read the passages, not as proof.</p>\n<h2>Limitations</h2>\n<ul>\n<li>Word-form grouping uses suggested suffix rules. Check each suggestion, since endings can mislead.</li>\n<li>Manglish spelling varies widely, so counts for Manglish text undercount.</li>\n<li>Vaakhu is single-user. Inter-coder agreement (Cohen's kappa) is not yet built in.</li>\n<li>Browser storage is limited (often around 5 MB). For large projects, rely on <strong>Save project</strong> files.</li>\n</ul>\n<h2>Planned</h2>\n<ul>\n<li>Optional AI-assisted coding suggestions, for de-identified text only and where participant consent allows</li>\n<li>Cohen's kappa for agreement between coders, or between a coder and AI suggestions</li>\n</ul>\n<h2>How to cite</h2>\n<p>Rajeev, S. (2026). <em>Vaakhu: Offline lexical analysis and qualitative coding for Malayalam, Manglish and English</em> [Computer software]. <a href=\"https://github.com/sachinrajeevcodes/Vaakhu\" target=\"_blank\" rel=\"noopener\">https://github.com/sachinrajeevcodes/Vaakhu</a></p>\n<h2>References</h2>\n<ul>\n<li>Dunning, T. (1993). Accurate methods for the statistics of surprise and coincidence. <em>Computational Linguistics, 19</em>(1), 61–74.</li>\n<li>Gries, S. Th. (2008). Dispersions and adjusted frequencies in corpora. <em>International Journal of Corpus Linguistics, 13</em>(4), 403–437.</li>\n<li>Hardie, A. (2014). <em>Log Ratio: An informal introduction</em>. ESRC Centre for Corpus Approaches to Social Science (CASS), Lancaster University.</li>\n<li>Rayson, P., &amp; Garside, R. (2000). Comparing corpora using frequency profiling. In <em>Proceedings of the Workshop on Comparing Corpora</em> (pp. 1–6). Association for Computational Linguistics.</li>\n<li>Rychlý, P. (2008). A lexicographer-friendly association score. In <em>Proceedings of Recent Advances in Slavonic Natural Language Processing (RASLAN 2008)</em> (pp. 6–9).</li>\n<li>van Manen, M. (1990). <em>Researching lived experience: Human science for an action sensitive pedagogy</em>. State University of New York Press.</li>\n</ul>\n<h2>Author</h2>\n<p>Sachin Rajeev</p>";
+const VIEWS = [['data','Responses'],['overview','Overview'],'Lexical analysis',['freq','Word frequency'],['kwic','Concordance'],['colloc','Collocates'],['key','Keyness'],['lex','Word lists'],['disp','Dispersion'],['cooc','Co-occurrence'],'Coding',['code','Coding workspace'],['codebook','Codebook'],['segs','Coded segments'],['canal','Code analysis'],['memos','Memos & journal'],null,['forms','Word forms & stopwords'],['about','About Vaakhu']];
 const R = {};
 
 function render(){
@@ -1040,7 +1002,7 @@ function filesPanel(){
 }
 function samplePanel(){
   const n = S.docs.filter(d => /^Sample \d+$/.test(d.pid)).length;
-  return '<h3>Sample data</h3><p class="hint">Twelve short, made-up answers in Malayalam, Manglish and English across the four participant groups. Use them to try each analysis before importing real data.</p>' +
+  return '<h3>Sample data</h3><p class="hint">Twelve short, made-up answers in Malayalam, Manglish and English across four groups. Use them to try each analysis before importing real data.</p>' +
     '<div class="actions"><button class="primary" data-act="sample-load">Load sample responses</button>' + (n ? '<button class="danger" data-act="sample-remove">Remove ' + n + ' sample responses</button>' : '') + '</div>';
 }
 function responsesTable(){
@@ -1121,7 +1083,7 @@ R.kwic = function(){
     '<label>Words each side<select id="kwSpan">' + [3,5,7,10,15,20].map(v => '<option' + (+o.span === v ? ' selected' : '') + '>' + v + '</option>').join('') + '</select></label>' +
     '<label>Sort by<select id="kwSort">' + [['doc','Response order'],['group','Group'],['L1','Word to the left'],['R1','Word to the right'],['node','Matched form']].map(x => '<option value="' + x[0] + '"' + (o.sort === x[0] ? ' selected' : '') + '>' + x[1] + '</option>').join('') + '</select></label>' +
     '<button class="primary" data-act="kwic-run">Search</button></div>' +
-    '<div class="bar"><label style="flex:1 1 220px">Only lines with this word nearby (optional)<input id="kwNear" data-enter="kwic-run" value="' + esc(o.near) + '" placeholder="For example ' + esc(ex.en[1] + ' | ' + ex.mlStem) + '"></label>' +
+    '<div class="bar"><label style="flex:1 1 220px">Only lines with this word nearby (optional)<input id="kwNear" data-enter="kwic-run" value="' + esc(o.near) + '" placeholder="For example friend | സുഹൃത്ത്"></label>' +
     '<label>Within<select id="kwNearSpan">' + [2,3,5,8,10].map(v => '<option' + (+o.nearSpan === v ? ' selected' : '') + '>' + v + '</option>').join('') + '</select></label>' +
     '<label class="check" style="margin-bottom:6px"><input type="checkbox" id="kwRegex"' + (o.regex ? ' checked' : '') + '> Regular expression</label></div>' +
     (S.ui.groupOn ? '<p class="hint">Grouped word forms are included, so searching a headword also finds its other forms.</p>' : '') + '</div>';
@@ -1131,7 +1093,7 @@ R.kwic = function(){
   const summary = '<div class="bar" style="align-items:center"><h3 style="margin:0">' + fmt(lines.length) + ' hits in ' + fmt(dset.size) + ' of ' + fmt(docs.length) + ' responses</h3><span class="spacer"></span><button data-act="kwic-export"' + (lines.length ? '' : ' disabled') + '>Download CSV</button></div>' +
     (lines.length && gs.length > 1 ? '<p class="hint">' + gs.map(g => '<span class="dot" style="--c:' + colorOf(g) + '"></span>' + esc(g) + ': ' + fmt(byG[g] || 0) + ' (' + fmt(tot.g[g] ? (byG[g] || 0) / tot.g[g] * 1000 : 0, 2) + ' per 1,000 words)').join('&nbsp;&nbsp; ') + '</p>' : '');
   const list = lines.length ? '<div class="kwic">' + lines.slice(0, lim).map((l, idx) => '<div class="kl" data-open="' + l.d.id + '" data-hl="' + esc(o.q) + '" data-near="' + esc(o.near) + '" tabindex="0" title="Open response"><span class="meta"><span class="dot" style="--c:' + colorOf(l.d.group) + '"></span>' + esc(l.d.pid || '–') + '</span><span class="l"><span>' + esc(l.left) + '</span></span><span class="node">' + esc(l.node) + '</span><span class="r">' + esc(l.right) + '</span></div>').join('') + '</div>' +
-    (lines.length > lim ? '<div class="actions"><button data-act="kwic-more">Show 500 more</button><span class="hint" style="margin:0">Showing ' + fmt(lim) + ' of ' + fmt(lines.length) + '.</span></div>' : '') : '<p class="hint">No matches. Check the spelling, try a wildcard such as കുടി*, or turn on Group word forms.</p>';
+    (lines.length > lim ? '<div class="actions"><button data-act="kwic-more">Show 500 more</button><span class="hint" style="margin:0">Showing ' + fmt(lim) + ' of ' + fmt(lines.length) + '.</span></div>' : '') : '<p class="hint">No matches. Check the spelling, try a wildcard such as work* or പറ*, or turn on Group word forms.</p>';
   return head(title, text) + controls + '<div class="panel">' + summary + list + '</div>';
 };
 
@@ -1141,7 +1103,7 @@ R.colloc = function(){
   const docs = filtered(); if (!docs.length) return emptyView(title, text);
   const o = S.ui.colloc;
   const controls = '<div class="panel"><div class="bar">' +
-    '<label style="flex:1 1 240px">Search word<input id="coQ" data-enter="colloc-run" value="' + esc(o.q) + '" placeholder="For example ' + esc(ex.ml[0] + ' | ' + ex.stem) + '"></label>' +
+    '<label style="flex:1 1 240px">Search word<input id="coQ" data-enter="colloc-run" value="' + esc(o.q) + '" placeholder="For example home | വീട്"></label>' +
     '<label>Words to the left<select id="coL">' + [0,1,2,3,4,5,8,10].map(v => '<option' + (+o.L === v ? ' selected' : '') + '>' + v + '</option>').join('') + '</select></label>' +
     '<label>Words to the right<select id="coR">' + [0,1,2,3,4,5,8,10].map(v => '<option' + (+o.R === v ? ' selected' : '') + '>' + v + '</option>').join('') + '</select></label>' +
     '<label>Minimum together<input type="number" id="coMin" min="1" value="' + (+o.min || 1) + '" style="width:90px"></label>' +
@@ -1192,15 +1154,15 @@ R.lex = function(){
   if (o.sel >= L.length) o.sel = Math.max(0, L.length - 1);
   const cur = L[o.sel];
   const side = '<div class="lexlist">' + (L.length ? L.map((x, i) => '<button class="' + (i === o.sel ? 'on' : '') + '" data-act="lex-sel" data-i="' + i + '"><span class="swatch" style="--c:' + esc(x.color) + '"></span>' + esc(x.name) + '<span class="n">' + lexTerms(x).length + '</span></button>').join('') : '<p class="hint">No word lists yet.</p>') +
-    '<div class="actions"><button data-act="lex-new">New list</button><button data-act="lex-starter" title="Four example lists from a study of alcohol addiction and stigma">Add example lists (addiction study)</button></div>' +
+    '<div class="actions"><button data-act="lex-new">New list</button><button data-act="lex-starter" title="Four general lists: positive feeling, negative feeling, uncertainty and certainty">Add example lists</button></div>' +
     '<div class="actions"><button data-act="lex-export"' + (L.length ? '' : ' disabled') + '>Export lists</button><label class="filepick" style="padding:6px 10px">Import lists<input type="file" id="lexFile" accept=".json"></label></div></div>';
   const editor = cur ? '<div class="panel"><div class="grid2"><label>Name<input id="lxName" value="' + esc(cur.name) + '"></label><label>Colour<input type="color" id="lxColor" value="' + esc(cur.color) + '" style="height:36px;padding:2px"></label></div>' +
     '<label class="block">Terms, one per line<textarea id="lxTerms" rows="9">' + esc(cur.terms) + '</textarea></label>' +
     '<div class="actions"><button class="primary" data-act="lex-save">Save list</button><button class="danger" data-act="lex-del">Delete list</button></div>' +
-    '<p class="hint">Starter lists are a first draft. Review every term before using the counts in your analysis; check concordance lines for words with more than one meaning.</p></div>' : '';
+    '<p class="hint">Example lists are a first draft. Review every term before using the counts in your analysis; check concordance lines for words with more than one meaning.</p></div>' : '';
   const docs = filtered();
   let results = '';
-  if (!L.length) results = '<div class="panel empty"><p>Create a list to begin. The example lists show how lists work, using terms from a study of alcohol addiction and stigma.</p></div>';
+  if (!L.length) results = '<div class="panel empty"><p>Create a list to begin, or add the example lists (positive and negative feeling, uncertainty and certainty) to see how lists work.</p></div>';
   else if (!docs.length) results = '<div class="panel empty"><p>' + (S.docs.length ? 'No responses match the current filters.' : 'Add responses to see counts.') + '</p></div>';
   else {
     const gs = groupsIn(docs), counts = L.map(x => lexCount(docs, x)), m = o.measure;
@@ -1251,10 +1213,10 @@ R.disp = function(){
 };
 
 R.cooc = function(){
-  const title = 'Co-occurrence', text = 'How often your chosen words appear together in the same response, the same sentence or within a few words. Useful for seeing which ideas travel together, such as ' + esc(examples().en[0]) + ' with ' + esc(examples().en[1]) + '.';
+  const title = 'Co-occurrence', text = 'How often your chosen words appear together in the same response, the same sentence or within a few words. Useful for seeing which ideas travel together.';
   const docs = filtered(); if (!docs.length) return emptyView(title, text);
   const o = S.ui.cooc;
-  const controls = '<div class="panel"><div class="grid2"><label>Words or patterns, one per line (up to 20)<textarea id="ccTerms" rows="7" placeholder="' + (ex => esc(ex.stem + '\n' + ex.en[1] + ' | ' + ex.mlStem + '\n' + ex.en[2]))(examples()) + '">' + esc(o.terms) + '</textarea></label>' +
+  const controls = '<div class="panel"><div class="grid2"><label>Words or patterns, one per line (up to 20)<textarea id="ccTerms" rows="7" placeholder="home | വീട്\nwork*\nfriend | സുഹൃത്ത്">' + esc(o.terms) + '</textarea></label>' +
     '<div><label>Count pairs that appear in<select id="ccUnit">' + [['doc','The same response'],['sent','The same sentence'],['5','Within 5 words'],['10','Within 10 words']].map(x => '<option value="' + x[0] + '"' + (o.unit === x[0] ? ' selected' : '') + '>' + x[1] + '</option>').join('') + '</select></label>' +
     '<label style="margin-top:10px">Measure<select id="ccMeasure"><option value="count"' + (o.measure === 'count' ? ' selected' : '') + '>Count</option><option value="jac"' + (o.measure === 'jac' ? ' selected' : '') + '>Jaccard (overlap from 0 to 1)</option></select></label>' +
     '<div class="actions"><button class="primary" data-act="cooc-run">Build matrix</button><button data-act="cooc-top">Use top 10 words</button></div></div></div></div>';
@@ -1277,6 +1239,9 @@ R.cooc = function(){
     '<p class="hint">The grey diagonal shows how many ' + unitLabel + ' contain each word on its own.' + (windowed && o.measure === 'jac' ? ' Jaccard is available for responses and sentences only.' : '') + '</p></div>';
 };
 
+R.about = function(){
+  return head('About Vaakhu', 'What Vaakhu does, how it handles your data, the statistics it uses and how to cite it.') + '<div class="panel about">' + ABOUT_HTML + '</div>';
+};
 R.forms = function(){
   const ex = examples(), fm = ex.forms.length >= 3 ? ex.forms.slice(0, 2).join(', ') + ' and ' + ex.forms[2] : ex.forms.join(' and ');
   const title = 'Word forms & stopwords', text = 'Malayalam attaches endings to words, so ' + esc(fm) + ' count as ' + (ex.forms.length >= 3 ? 'three' : 'two') + ' words unless you group them. Group the forms you consider the same word, and decide which common words to leave out of counts.';
@@ -1286,13 +1251,13 @@ R.forms = function(){
   const heads = Object.keys(inv).filter(h => !q || h.indexOf(q) >= 0 || inv[h].some(f => f.indexOf(q) >= 0)).sort((a, b) => a.localeCompare(b, 'ml'));
   const sugg = SUGG === null ? '<p class="hint">Suggestions look for words that share a stem once common endings are removed (Malayalam case endings, Manglish endings such as -nte and -il, English -s, -ed and -ing). Every suggestion needs your check: endings can mislead.</p><div class="actions"><button class="primary" data-act="sg-find"' + (S.docs.length ? '' : ' disabled') + '>Find likely groupings</button></div>'
     : (SUGG.length ? '<div class="bar" style="align-items:center"><span class="hint" style="margin:0">' + fmt(SUGG.length) + ' possible groupings, most frequent first. Untick any form that does not belong, pick the headword, then group.</span><span class="spacer"></span><button data-act="sg-all">Group all shown</button><button data-act="sg-close">Close suggestions</button></div>' +
-      SUGG.slice(0, 150).map((g, i) => '<div class="sg"><label style="flex-direction:row;align-items:center;gap:6px;color:var(--ink)">Headword<select data-sghead="' + i + '">' + g.forms.map(f => '<option' + (f.w === g.head ? ' selected' : '') + '>' + esc(f.w) + '</option>').join('') + '</select></label><input data-sgcustom="' + i + '" placeholder="or type one, e.g. രോഗം" aria-label="Type a different headword" style="width:170px"><div class="forms">' +
+      SUGG.slice(0, 150).map((g, i) => '<div class="sg"><label style="flex-direction:row;align-items:center;gap:6px;color:var(--ink)">Headword<select data-sghead="' + i + '">' + g.forms.map(f => '<option' + (f.w === g.head ? ' selected' : '') + '>' + esc(f.w) + '</option>').join('') + '</select></label><input data-sgcustom="' + i + '" placeholder="or type one, e.g. വീട്" aria-label="Type a different headword" style="width:170px"><div class="forms">' +
         g.forms.map(f => '<label><input type="checkbox" data-sgform="' + i + '" value="' + esc(f.w) + '" checked> ' + esc(f.w) + ' <span class="muted">' + f.f + '</span></label>').join('') + '</div><button data-act="sg-merge" data-i="' + i + '">Group</button><button data-act="sg-skip" data-i="' + i + '">Skip</button></div>').join('')
       : '<p class="hint">No more groupings to suggest.</p><div class="actions"><button data-act="sg-close">Close suggestions</button></div>');
   return head(title, text) +
     '<div class="panel"><h3>Suggested groupings</h3>' + sugg + '</div>' +
     '<div class="panel"><div class="bar" style="align-items:center"><h3 style="margin:0">Your grouped words (' + fmt(Object.keys(inv).length) + ')</h3><input type="search" id="fmQ" value="' + esc(o.q) + '" placeholder="Find a word"><span class="spacer"></span><button data-act="fm-export"' + (heads.length ? '' : ' disabled') + '>Download CSV</button></div>' +
-    '<div class="bar"><label style="flex:1 1 260px">Forms, separated by spaces or commas<input id="fmForms" placeholder="' + esc(ex.forms.slice(0, 2).join(' ')) + '"></label><label>Headword<input id="fmHead" placeholder="' + esc(ex.head) + '"></label><button data-act="fm-add">Group them</button></div>' +
+    '<div class="bar"><label style="flex:1 1 260px">Forms, separated by spaces or commas<input id="fmForms" placeholder="വീട്ടിൽ വീടിന്റെ"></label><label>Headword<input id="fmHead" placeholder="' + esc(ex.head) + '"></label><button data-act="fm-add">Group them</button></div>' +
     (heads.length ? '<div class="tablewrap"><table class="t"><thead><tr><th>Headword</th><th>Counted with it</th></tr></thead><tbody>' + heads.slice(0, 400).map(h => '<tr><td class="w">' + esc(h) + '</td><td>' + inv[h].sort().map(f => '<span class="chip">' + esc(f) + '<button data-act="fm-un" data-form="' + esc(f) + '" aria-label="Ungroup ' + esc(f) + '">×</button></span>').join('') + '</td></tr>').join('') + '</tbody></table></div>' : '<p class="hint">No grouped words yet.</p>') + '</div>' +
     '<div class="panel"><h3>Stopwords</h3><p class="hint">Common words left out of counts when Remove stopwords is on. Negations (no, not, nor, ഇല്ല, അല്ല, illa, alla) are deliberately not on these lists, because they matter when reading attitudes. Separate words with spaces or new lines.</p>' +
     '<div class="grid3"><label>English (' + S.stop.en.length + ')<textarea id="stEn" rows="8">' + esc(S.stop.en.join(' ')) + '</textarea></label><label>Malayalam (' + S.stop.ml.length + ')<textarea id="stMl" rows="8">' + esc(S.stop.ml.join(' ')) + '</textarea></label><label>Manglish (' + S.stop.mg.length + ')<textarea id="stMg" rows="8">' + esc(S.stop.mg.join(' ')) + '</textarea></label></div>' +
@@ -1712,7 +1677,7 @@ function onClick(e){
       addDocs(SAMPLE.map(s => ({pid:s[0], group:s[1], item:s[2], mode:s[3], text:s[4]})));
       if (!S.lexicons.length) S.lexicons = STARTER_LISTS.map((x, i) => ({name:x.name, color:PALETTE[i % PALETTE.length], terms:x.terms}));
       sampleCodebook();
-      changed(); toast('Loaded 12 sample responses with starter word lists and a sample codebook'); break;
+      changed(); toast('Loaded 12 sample responses with example word lists and a sample codebook'); break;
     }
     case 'sample-remove': S.docs = S.docs.filter(d => !/^Sample \d+$/.test(d.pid)); changed(); toast('Removed the sample responses'); break;
     case 'data-more': u.dataLimit = 1e9; changed(); break;
@@ -1757,7 +1722,7 @@ function onClick(e){
     }
     case 'lex-sel': u.lex.sel = +t.getAttribute('data-i'); changed(); break;
     case 'lex-new': S.lexicons.push({name:'New list ' + (S.lexicons.length + 1), color:PALETTE[S.lexicons.length % PALETTE.length], terms:''}); u.lex.sel = S.lexicons.length - 1; changed(); break;
-    case 'lex-starter': { const have = new Set(S.lexicons.map(x => x.name)); let n = 0; STARTER_LISTS.forEach(x => { if (!have.has(x.name)) { S.lexicons.push({name:x.name, color:PALETTE[S.lexicons.length % PALETTE.length], terms:x.terms}); n++; } }); changed(); toast(n ? 'Added ' + n + ' starter lists' : 'The starter lists are already here'); break; }
+    case 'lex-starter': { const have = new Set(S.lexicons.map(x => x.name)); let n = 0; STARTER_LISTS.forEach(x => { if (!have.has(x.name)) { S.lexicons.push({name:x.name, color:PALETTE[S.lexicons.length % PALETTE.length], terms:x.terms}); n++; } }); changed(); toast(n ? 'Added ' + n + ' example lists' : 'The example lists are already here'); break; }
     case 'lex-save': { const lx = S.lexicons[u.lex.sel]; if (!lx) return; lx.name = $('#lxName').value.trim() || lx.name; lx.color = $('#lxColor').value; lx.terms = $('#lxTerms').value; changed(); toast('Saved ' + lx.name); break; }
     case 'lex-del': { const lx = S.lexicons[u.lex.sel]; if (!lx) return; ask('Delete the list "' + lx.name + '"?', {ok:'Delete list', danger:true}).then(ok => { if (!ok) return; S.lexicons = S.lexicons.filter(x => x !== lx); u.lex.sel = 0; changed(); toast('Deleted ' + lx.name); }); break; }
     case 'lex-kwic': { const lx = S.lexicons[u.lex.sel]; if (!lx) return; u.kwic.q = lexTerms(lx).map(x => x.t).join(' | '); u.kwic.near = ''; u.kwic.regex = false; go('kwic'); break; }

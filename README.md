@@ -1,9 +1,8 @@
-[README.md](https://github.com/user-attachments/files/33151699/README.md)
 # Vaakhu (വാക്ക്)
 
 Offline lexical analysis and qualitative coding for Malayalam, Manglish and English text.
 
-**Open the app:** https://your-username.github.io/vaakhu/
+**Open the app:** https://sachinrajeevcodes.github.io/Vaakhu/
 
 Vaakhu is a single-page tool for researchers working with open-ended survey answers and interview transcripts in Malayalam, in Malayalam typed in English letters (Manglish), and in English. It combines corpus-style lexical analysis with a qualitative coding workspace, and it runs entirely in your browser.
 
@@ -24,7 +23,7 @@ It was built for a doctoral study on alcohol addiction and its portrayal in Mala
 
 File previews, such as the iPhone Files app, switch JavaScript off and cannot run Vaakhu. Open it in a browser instead.
 
-To explore before importing real data, go to **Responses → Sample data**. It loads twelve made-up answers, starter word lists and a small demo codebook.
+To explore before importing real data, go to **Responses → Sample data**. It loads twelve made-up answers, example word lists and a small demo codebook.
 
 ## Bringing data in
 
@@ -49,7 +48,7 @@ Each answer becomes one response, tagged with a group, item, language and mode (
 | Concordance | Every occurrence of a search term in context. Supports `*` and `?` wildcards, alternatives with `\|`, regular expressions, a "nearby word" filter and sorting by neighbouring words |
 | Collocates | Words that occur near a search term, ranked by logDice, mutual information, T-score or log-likelihood |
 | Keyness | Words one group, language, item or mode uses more or less than another, with log-likelihood significance and log ratio |
-| Word lists | Your own categories of terms (for example stigma, disease or recovery language) counted by group |
+| Word lists | Your own categories of terms (for example words for a feeling, a stance or a topic) counted by group. Four general example lists are included |
 | Dispersion | Where a term appears across responses, with DP and normalised DP |
 | Co-occurrence | How often chosen terms appear together in a response, a sentence or a window of words |
 
@@ -93,7 +92,7 @@ With small samples, treat every statistic as a pointer to read the passages, not
 
 ## How to cite
 
-Rajeev, S. (2026). *Vaakhu: Offline lexical analysis and qualitative coding for Malayalam, Manglish and English* [Computer software]. https://github.com/your-username/vaakhu
+Rajeev, S. (2026). *Vaakhu: Offline lexical analysis and qualitative coding for Malayalam, Manglish and English* [Computer software]. https://github.com/sachinrajeevcodes/Vaakhu
 
 ## References
 
