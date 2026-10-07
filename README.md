@@ -2,7 +2,7 @@
 
 Offline lexical analysis and qualitative coding for Malayalam, Manglish and English text.
 
-**Open the app:** https://your-username.github.io/vaakhu/
+**Open the app:** https://sachinrajeevcodes.github.io/Vaakhu/
 
 Vaakhu is a single-page tool for researchers working with open-ended survey answers and interview transcripts in Malayalam, in Malayalam typed in English letters (Manglish), and in English. It combines corpus-style lexical analysis with a qualitative coding workspace, and it runs entirely in your browser.
 
