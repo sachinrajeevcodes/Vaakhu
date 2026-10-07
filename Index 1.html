@@ -1,0 +1,1971 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#FAFBFA">
+<title>Vaakhu – lexical analysis workbench</title>
+<style>
+:root{
+  --paper:#EDF1EE; --panel:#FAFBFA; --line:#D0D9D3; --line-soft:#E4EAE6;
+  --ink:#1D2A39; --muted:#5A6878; --green:#1F6F61; --green-d:#175548;
+  --hl:#F3C54A; --hl-soft:#FCEFC4; --danger:#9C2F2F; --radius:6px;
+  --font:"Segoe UI",system-ui,-apple-system,"Noto Sans","Nirmala UI","Noto Sans Malayalam",Kartika,Meera,sans-serif;
+  --head:Bahnschrift,"DIN Alternate","Barlow Semi Condensed","Segoe UI","Nirmala UI","Noto Sans Malayalam",sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--paper);color:var(--ink);font:15px/1.55 var(--font)}
+button,input,select,textarea{font:inherit;color:inherit}
+h2,h3{font-family:var(--head)}
+
+/* header */
+header.top{display:flex;align-items:center;gap:20px;padding:14px 22px;background:var(--panel);border-bottom:1px solid var(--line);flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:14px}
+.mark{font:600 34px/1.1 "Nirmala UI","Noto Sans Malayalam",Kartika,var(--head);position:relative;padding:0 8px 4px;isolation:isolate}
+.mark::before{content:"";position:absolute;inset:40% -3px 6% -5px;background:var(--hl);transform:rotate(-1.6deg);border-radius:3px 9px 4px 10px;z-index:-1}
+.brand h1{font:600 20px/1.15 var(--head);margin:0}
+.brand p{margin:2px 0 0;color:var(--muted);font-size:13px}
+.status{margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.status .count{color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums;margin-right:6px}
+
+/* filters */
+.filters{position:sticky;top:0;z-index:5;display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;padding:8px 22px;background:var(--paper);border-bottom:1px solid var(--line)}
+.filters label{flex-direction:row;align-items:center;gap:6px}
+.filters select{min-width:110px;max-width:220px}
+.filters .shown{margin-left:auto;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+
+/* layout */
+.shell{display:grid;grid-template-columns:214px minmax(0,1fr);min-height:calc(100vh - 118px)}
+nav.side{padding:14px 10px;border-right:1px solid var(--line)}
+nav.side button{display:block;width:100%;text-align:left;background:none;border:0;padding:7px 12px;border-radius:var(--radius);font-size:14px;position:relative;isolation:isolate}
+nav.side button:hover{background:#E1E8E3}
+nav.side button.on{font-weight:600}
+nav.side button.on::before{content:"";position:absolute;left:7px;right:8px;top:52%;bottom:5px;background:var(--hl);opacity:.85;transform:rotate(-1deg);border-radius:2px 6px 3px 7px;z-index:-1}
+nav.side .sep{height:1px;background:var(--line);margin:8px 10px}
+main{padding:20px 26px 70px;min-width:0}
+.view-head h2{font-size:24px;line-height:1.2;margin:0 0 4px;font-weight:600}
+.view-head p{margin:0 0 16px;color:var(--muted);max-width:74ch}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;margin:0 0 16px}
+.panel h3{font-size:16px;line-height:1.3;margin:0 0 8px;font-weight:600}
+.panel > h3 + .hint{margin-top:-4px}
+.empty{color:var(--muted)}
+.empty p{max-width:62ch}
+
+/* controls */
+button{cursor:pointer;border:1px solid var(--line);background:#fff;border-radius:var(--radius);padding:6px 12px;font-size:14px}
+button:hover:not(:disabled){border-color:#97A99F}
+button:disabled{opacity:.45;cursor:default}
+button.primary{background:var(--green);border-color:var(--green);color:#fff}
+button.primary:hover:not(:disabled){background:var(--green-d)}
+button.danger{color:var(--danger)}
+button.link{border:0;background:none;padding:0;color:var(--green);text-decoration:underline;text-underline-offset:2px;font-size:inherit;text-align:left}
+:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+input[type=text],input[type=search],input[type=number],input:not([type]),select,textarea{border:1px solid var(--line);background:#fff;border-radius:var(--radius);padding:6px 9px;font-size:14px;color:var(--ink)}
+textarea{width:100%;resize:vertical;line-height:1.7}
+label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}
+label.check{flex-direction:row;align-items:center;gap:8px;color:var(--ink);font-size:14px}
+label.block{margin:0 0 10px}
+.grid2,.grid3{display:grid;gap:12px 16px;margin:0 0 12px}
+.grid2{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+.grid3{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+.hint{color:var(--muted);font-size:13px;margin:0 0 10px;max-width:80ch}
+.actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px}
+.bar{display:flex;gap:10px 14px;align-items:flex-end;flex-wrap:wrap;margin:0 0 10px}
+.bar label{min-width:0}
+.spacer{flex:1}
+.nojs{padding:28px 22px;max-width:62ch}
+.nojs h2{font:600 22px/1.25 var(--head);margin:0 0 10px}
+.nojs p{margin:0 0 10px;color:var(--muted)}
+.bulk{display:flex;gap:10px;align-items:center}
+.seg{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 12px}
+.seg button{border-radius:999px;padding:5px 14px;background:transparent}
+.seg button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.filepick{display:inline-flex;flex-direction:column;gap:6px;padding:14px 16px;border:1px dashed #9FB0A6;border-radius:var(--radius);background:#fff;color:var(--ink);font-size:14px}
+fieldset.cols{border:1px solid var(--line);border-radius:var(--radius);padding:10px 12px;margin:0 0 8px;max-height:320px;overflow:auto;background:#fff}
+fieldset.cols legend{font-size:13px;color:var(--muted);padding:0 4px}
+.colpick{flex-direction:row;align-items:baseline;gap:8px;padding:4px 0;border-bottom:1px solid var(--line-soft);color:var(--ink);font-size:14px}
+.colpick .cname{font-weight:600;min-width:180px;max-width:280px}
+.colpick .cprev{color:var(--muted);font-size:13px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+details{margin-top:10px}
+details summary{cursor:pointer;color:var(--green);font-size:14px}
+details .hint{margin-top:8px}
+
+/* tables */
+.tablewrap{overflow:auto;max-height:68vh;border:1px solid var(--line);border-radius:var(--radius);background:#fff}
+table.t{border-collapse:collapse;width:100%;font-size:14px}
+table.t th{position:sticky;top:0;z-index:1;background:#F1F4F2;text-align:left;font-weight:600;font-size:13px;color:var(--muted);padding:7px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+table.t td{padding:6px 10px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+table.t tbody tr:hover td{background:#F6F9F7}
+table.t .num, .num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+td.prev{color:var(--muted);max-width:440px}
+td.w{font-weight:600}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--c);margin-right:7px;vertical-align:baseline}
+.muted{color:var(--muted)}
+.sig{color:var(--green);letter-spacing:1px}
+.chip{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);border-radius:999px;padding:1px 4px 1px 10px;margin:2px 4px 2px 0;background:#fff;font-size:14px}
+.chip button{border:0;background:none;padding:0 6px;color:var(--muted);font-size:15px;line-height:1}
+
+/* concordance */
+.kwic{font-size:15px;border:1px solid var(--line);border-radius:var(--radius);background:#fff;max-height:66vh;overflow:auto}
+.kl{display:grid;grid-template-columns:150px minmax(0,1fr) auto minmax(0,1fr);gap:10px;align-items:baseline;padding:5px 12px;border-bottom:1px solid var(--line-soft);cursor:pointer;line-height:1.75}
+.kl:hover{background:#F6F9F7}
+.kl .meta{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kl .l{display:flex;justify-content:flex-end;overflow:hidden;white-space:nowrap}
+.kl .l span{white-space:pre}
+.kl .r{overflow:hidden;white-space:pre;text-overflow:ellipsis}
+mark,.node{background:linear-gradient(100deg,transparent 0 2%,var(--hl) 3% 97%,transparent 98%);padding:0 3px;border-radius:2px;color:inherit}
+.node{font-weight:600;white-space:nowrap}
+mark.near{background:none;border-bottom:2px solid var(--green);padding:0}
+
+/* charts */
+svg.chart{display:block;max-width:100%;height:auto;font:12px var(--font);margin:6px 0}
+svg.chart .lbl{fill:var(--ink)}
+svg.chart .val{fill:var(--muted);font-variant-numeric:tabular-nums}
+svg.chart .axis{stroke:var(--line)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--muted);margin:4px 0 0}
+.cloud{display:flex;flex-wrap:wrap;gap:4px 16px;align-items:baseline;padding:18px;background:#fff;border:1px solid var(--line);border-radius:var(--radius);line-height:1.3}
+.cloud button{border:0;background:none;padding:0}
+.cloud button:hover{text-decoration:underline}
+
+/* lexicons */
+.lexgrid{display:grid;grid-template-columns:250px minmax(0,1fr);gap:16px;align-items:start}
+.lexlist button{display:flex;align-items:center;gap:8px;width:100%;text-align:left;margin:0 0 6px;background:#fff}
+.lexlist button.on{border-color:var(--ink);box-shadow:inset 3px 0 0 var(--ink)}
+.lexlist .n{margin-left:auto;color:var(--muted);font-size:12px}
+.swatch{width:12px;height:12px;border-radius:3px;background:var(--c);flex:none}
+
+/* co-occurrence */
+table.heat td.cell{text-align:center;font-variant-numeric:tabular-nums;min-width:58px}
+table.heat td.diag{color:var(--muted);font-style:italic}
+
+/* suggestions */
+.sg{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line-soft)}
+.sg .forms{display:flex;flex-wrap:wrap;gap:4px 12px;flex:1}
+.sg .forms label{flex-direction:row;align-items:center;gap:4px;color:var(--ink);font-size:14px}
+
+/* dialog */
+dialog{border:1px solid var(--line);border-radius:10px;padding:0;width:min(880px,94vw);max-height:90vh;background:var(--panel);color:var(--ink)}
+dialog::backdrop{background:rgba(29,42,57,.45)}
+.dlg-head{display:flex;gap:10px;align-items:flex-start;padding:14px 18px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.dlg-head h3{margin:0;font-size:18px}
+.dlg-head p{margin:2px 0 0;font-size:13px}
+.dlg-body{padding:16px 18px;overflow:auto;max-height:62vh}
+.dlg-foot{display:flex;gap:10px;padding:12px 18px;border-top:1px solid var(--line)}
+.doctext{white-space:pre-wrap;font-size:16px;line-height:1.8;max-width:78ch}
+
+#ask{width:min(440px,92vw);border:1px solid var(--line);border-radius:14px;padding:0;background:var(--panel);color:var(--ink)}
+#ask::backdrop{background:rgba(29,42,57,.45)}
+.ask{padding:20px}
+.ask-msg{margin:0 0 14px;font-size:16px;line-height:1.55}
+.ask input{width:100%;margin:0 0 6px}
+.ask .actions{justify-content:flex-end}
+button.dangerfill{background:var(--danger);border-color:var(--danger);color:#fff}
+#toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,16px);background:var(--ink);color:#fff;padding:9px 16px;border-radius:999px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:50;max-width:90vw}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+@media (prefers-reduced-motion:reduce){#toast{transition:none}}
+
+/* coding */
+nav.side .navlabel{font-size:12px;color:var(--muted);padding:12px 12px 2px}
+.codegrid{display:grid;grid-template-columns:210px minmax(0,1fr) 310px;gap:14px;align-items:start}
+.doclist{max-height:70vh;overflow:auto;border:1px solid var(--line);border-radius:var(--radius);background:#fff}
+.doclist button{display:block;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line-soft);border-radius:0;padding:7px 10px;background:#fff}
+.doclist button.on{background:var(--hl-soft)}
+.doclist .sub{display:block;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.reader{white-space:pre-wrap;font-size:17px;line-height:1.95;background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px;user-select:text}
+.cseg{background:var(--sc);border-bottom:2px solid var(--sb);cursor:pointer;border-radius:2px}
+.cseg.multi{border-bottom:3px double var(--sb)}
+.cseg.sel{outline:2px solid var(--ink);outline-offset:1px}
+.cseg.ess{font-weight:600}
+.side-panel .panel{padding:12px 14px;margin-bottom:12px}
+.codepick{display:flex;flex-direction:row;align-items:center;gap:8px;padding:3px 0;font-size:14px;color:var(--ink)}
+.codepick.child{padding-left:18px}
+.codepick kbd{font:12px var(--font);border:1px solid var(--line);border-radius:4px;padding:0 5px;color:var(--muted);margin-left:auto}
+.seglist .segi{border-top:1px solid var(--line-soft);padding:8px 4px}
+.segi.sel{background:var(--hl-soft)}
+.segi blockquote,.ret blockquote{margin:0 0 6px;font-size:14px;line-height:1.7}
+.ret blockquote{font-size:15px}
+.cchip{display:inline-flex;align-items:center;gap:2px;border-radius:999px;padding:0 4px 0 9px;margin:2px 4px 2px 0;font-size:12px;background:var(--sc);border:1px solid var(--sb);line-height:1.7}
+.cchip button{border:0;background:none;padding:0 4px;font-size:13px;line-height:1;color:var(--ink)}
+.star{border:0;background:none;padding:0 4px 0 0;font-size:16px;color:#B07D12}
+.lines .line{display:grid;grid-template-columns:minmax(0,1fr) 250px;gap:12px;padding:10px 0;border-bottom:1px solid var(--line-soft)}
+.lines .ltext{font-size:16px;line-height:1.85;white-space:pre-wrap;user-select:text}
+.lines textarea{font-size:13px}
+.selbox blockquote{margin:6px 0;padding:6px 10px;background:var(--hl-soft);border-radius:4px;max-height:130px;overflow:auto;font-size:14px}
+.ret .ri{padding:10px 14px;border-bottom:1px solid var(--line-soft);cursor:pointer}
+.ret .ri:hover{background:#F6F9F7}
+.tree button{display:flex;align-items:center;gap:8px;width:100%;text-align:left;margin:0 0 5px;background:#fff}
+.tree button.child{margin-left:18px;width:calc(100% - 18px)}
+.tree button.on{border-color:var(--ink);box-shadow:inset 3px 0 0 var(--ink)}
+.tree .n{margin-left:auto;color:var(--muted);font-size:12px}
+@media (max-width:1180px){.codegrid{grid-template-columns:190px minmax(0,1fr)}.codegrid .side-panel{grid-column:1/-1}}
+@media (max-width:860px){.codegrid{grid-template-columns:1fr}.lines .line{grid-template-columns:1fr}}
+/* phones and small tablets */
+.mobile-only,.sb-mob,td.c-meta{display:none}
+#scrim{display:none}
+.icon{width:22px;height:22px;display:block}
+.tray-q{font-size:14px;line-height:1.6;background:var(--hl-soft);border-radius:8px;padding:6px 10px;margin:0 0 8px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.tray-chips{display:flex;gap:8px;overflow-x:auto;padding:2px 0 4px;scrollbar-width:none}
+.tray-chips::-webkit-scrollbar{display:none}
+.tchip{flex:none;border-radius:999px;background:var(--sc);border:1px solid var(--sb);min-height:42px;padding:6px 16px;font-size:15px;white-space:nowrap}
+.tray-row{display:flex;justify-content:space-between;align-items:center;margin-top:6px;gap:8px}
+@media (max-width:860px){
+  .mobile-only{display:revert}
+  body{font-size:16px}
+  body.nav-open,body.filters-open{overflow:hidden}
+  header.top{position:sticky;top:0;z-index:20;padding:8px 8px 8px 14px;padding-top:calc(8px + env(safe-area-inset-top,0px));gap:6px;flex-wrap:nowrap}
+  .brand{gap:10px;min-width:0;flex:1}
+  .desk-brand,.status{display:none}
+  .mark{font-size:22px;padding:0 5px 3px}
+  .apptitle{font:600 17px/1.2 var(--head);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+  .iconbtn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-width:46px;min-height:46px;padding:0 10px;border-radius:12px;background:#fff;position:relative}
+  .iconbtn .badge{position:absolute;top:5px;right:5px;background:var(--green);color:#fff;border-radius:999px;font-size:11px;min-width:18px;line-height:18px;padding:0 5px}
+  .shell{display:block;min-height:0}
+  nav.side{position:fixed;top:0;bottom:0;left:0;width:min(84vw,320px);z-index:40;background:var(--panel);border-right:1px solid var(--line);overflow-y:auto;padding:calc(14px + env(safe-area-inset-top,0px)) 10px 28px;transform:translateX(-104%);transition:transform .22s ease;visibility:hidden}
+  body.nav-open nav.side{transform:none;visibility:visible;box-shadow:8px 0 28px rgba(29,42,57,.2)}
+  nav.side button{min-height:46px;font-size:16px;padding:10px 14px}
+  nav.side .navlabel{font-size:13px;padding:14px 14px 4px}
+  .navproj{display:block;border-top:1px solid var(--line);margin-top:12px;padding:14px 6px 0}
+  .navproj .count{font-size:14px;color:var(--muted);margin:0 0 10px}
+  .navproj .actions{margin-top:0}
+  .navproj .actions button{flex:1 1 100%}
+  #scrim{position:fixed;inset:0;z-index:35;background:rgba(29,42,57,.38)}
+  body.nav-open #scrim,body.filters-open #scrim{display:block}
+  .filters{position:fixed;left:0;right:0;bottom:0;top:auto;z-index:40;display:none;flex-direction:column;align-items:stretch;gap:14px;padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px));border:0;border-radius:18px 18px 0 0;background:var(--panel);max-height:82vh;overflow-y:auto;box-shadow:0 -10px 28px rgba(29,42,57,.2)}
+  body.filters-open .filters{display:flex}
+  .filters label{flex-direction:column;align-items:stretch;font-size:14px}
+  .filters label.check{flex-direction:row;align-items:center;font-size:16px}
+  .filters select{max-width:none;width:100%}
+  .filters .shown{margin:0;order:-1;font:600 17px/1.3 var(--head);color:var(--ink)}
+  main{padding:14px 14px calc(96px + env(safe-area-inset-bottom,0px))}
+  body.view-code main{padding-bottom:calc(190px + env(safe-area-inset-bottom,0px))}
+  .view-head h2{font-size:21px}
+  .view-head p{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:14px;cursor:pointer;margin-bottom:12px}
+  .view-head p.open{display:block}
+  .panel{padding:14px;border-radius:12px;margin-bottom:12px}
+  button{min-height:44px;padding:8px 14px;font-size:15px}
+  button.link,.cchip button,.chip button,.star{min-height:0}
+  .star{font-size:20px;padding:0 8px 0 0}
+  input[type=text],input[type=search],input[type=number],input:not([type]),select,textarea{font-size:16px;min-height:46px}
+  textarea{min-height:0}
+  input[type=checkbox]{width:20px;height:20px}
+  .bar{flex-direction:column;align-items:stretch;gap:12px}
+  .bar > label,.bar > input{width:100%}
+  .bar > label input:not([type=checkbox]),.bar > label select{width:100% !important}
+  .bar .spacer{display:none}
+  .bar > button,.bar > h3{width:100%}
+  .actions > button{flex:1 1 auto}
+  .seg{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+  .seg::-webkit-scrollbar{display:none}
+  .seg button{white-space:nowrap;flex:none}
+  .grid2,.grid3{grid-template-columns:1fr}
+  .tablewrap{max-height:none}
+  table.t th,table.t td{padding:9px 8px}
+  table.cards thead{display:none}
+  table.cards,table.cards tbody{display:block}
+  table.cards tr{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:2px 12px;padding:12px;border-bottom:1px solid var(--line-soft)}
+  table.cards td{display:block;border:0;padding:0}
+  table.cards td.c-sel{grid-row:1 / span 3;padding-top:3px}
+  table.cards td.c-id{font-weight:600}
+  table.cards td.c-words{text-align:right;color:var(--muted);font-size:13px}
+  table.cards td.c-meta{display:block;grid-column:2 / -1;font-size:13px;color:var(--muted)}
+  table.cards td.c-text{grid-column:2 / -1;max-width:none;font-size:15px}
+  table.cards td.c-group,table.cards td.c-item,table.cards td.c-lang,table.cards td.c-mode{display:none}
+  .kwic{max-height:none}
+  .kl{display:block;padding:12px 14px;line-height:1.8}
+  .kl .meta{display:block;margin-bottom:2px}
+  .kl .l,.kl .r{display:inline;white-space:normal}
+  .kl .l span{white-space:normal}
+  .lexgrid{grid-template-columns:1fr}
+  .colpick{flex-wrap:wrap}
+  .colpick .cname{min-width:0;flex:1}
+  .colpick .cprev{flex-basis:100%;padding-left:28px}
+  #dlg{width:100vw;max-width:100vw;height:100dvh;max-height:100dvh;margin:0;border:0;border-radius:0}
+  #dlg[open]{display:flex;flex-direction:column}
+  .ask .actions button{flex:1 1 0}
+  .dlg-head{padding-top:calc(12px + env(safe-area-inset-top,0px))}
+  .dlg-head > div:first-child{flex:1 1 100%}
+  .dlg-head button{flex:1 1 auto}
+  .dlg-body{flex:1;max-height:none}
+  .dlg-foot{padding-bottom:calc(12px + env(safe-area-inset-bottom,0px))}
+  .dlg-foot button{flex:1 1 auto}
+  #toast{bottom:calc(100px + env(safe-area-inset-bottom,0px))}
+  .codegrid{display:block}
+  .codegrid > div:first-child{display:none}
+  .docpick{display:block;margin:0 0 10px}
+  .codehead{flex-direction:row;flex-wrap:wrap;align-items:center}
+  .codehead > div:first-child{flex:1 1 100%}
+  .codehead .seg{flex:1 1 100%}
+  .codehead .seg button{flex:1 1 50%}
+  .codehead > button{flex:1 1 40%;width:auto}
+  .reader{font-size:18px;padding:14px;border-radius:12px}
+  .side-panel .selbox{position:fixed;left:0;right:0;bottom:0;z-index:30;margin:0;border-radius:18px 18px 0 0;border-width:1px 0 0;box-shadow:0 -10px 28px rgba(29,42,57,.16);padding:12px 14px calc(12px + env(safe-area-inset-bottom,0px))}
+  .sb-desk{display:none}
+  .sb-mob{display:block}
+  .lines .line{grid-template-columns:1fr}
+  .lines .line button{width:100%}
+}
+@media (max-width:860px){
+  #toast{border-radius:12px;max-width:calc(100vw - 32px);width:max-content;text-align:center;line-height:1.45}
+  main{overflow-x:clip}
+  .lexgrid{grid-template-columns:minmax(0,1fr)}
+  .lexgrid > div,.codegrid > div,.side-panel{min-width:0}
+  .bar{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 12px;align-items:end}
+  .bar > *{grid-column:1 / -1}
+  .bar > label:not([style*="flex"]):not(.check){grid-column:auto}
+  .bar > label[style*="flex"]{flex:none !important}
+  .bar > button{grid-column:auto}
+  .bar > button:only-of-type{grid-column:1 / -1}
+  .codepick kbd{display:none}
+  table.t:not(.cards) th:first-child,table.t:not(.cards) td:first-child{min-width:150px}
+  table.heat th:first-child{min-width:130px}
+  .bulk{overflow-x:auto;scrollbar-width:none;flex-wrap:nowrap}
+  .bulk::-webkit-scrollbar{display:none}
+  .bulk button{flex:none;min-height:40px;font-size:14px;padding:6px 12px}
+}
+@media (max-width:860px) and (prefers-reduced-motion:reduce){nav.side{transition:none}}
+@media (hover:none){table.t tbody tr:hover td,.kl:hover,.ret .ri:hover,nav.side button:hover{background:none}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <span class="mark" lang="ml" aria-hidden="true">വാക്ക്</span>
+    <div class="desk-brand">
+      <h1>Vaakhu</h1>
+      <p>Lexical analysis and coding for Malayalam, Manglish and English responses. Works offline; your data stays on this computer.</p>
+    </div>
+    <span class="apptitle mobile-only" id="apptitle"></span>
+  </div>
+  <button class="iconbtn mobile-only" id="fltBtn" data-act="flt-toggle" aria-label="Filters" aria-expanded="false"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h18l-7 8v5l-4 2v-7z"/></svg><span class="badge" id="fltBadge" hidden></span></button>
+  <button class="iconbtn mobile-only" data-act="menu-toggle" aria-label="Menu" aria-expanded="false"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+  <div class="status">
+    <span class="count" id="status"></span>
+    <button data-act="proj-save">Save project</button>
+    <button data-act="proj-open">Open project</button>
+    <button data-act="proj-new">New project</button>
+    <input type="file" id="openFile" accept=".json" hidden>
+  </div>
+</header>
+<noscript><style>.iconbtn,.status,.filters,.shell{display:none!important}</style><div class="nojs"><h2>This preview can't run Vaakhu</h2><p>Vaakhu is an app, and it needs JavaScript. File previews, such as the iPhone Files app, switch JavaScript off, so you only see a blank page.</p><p>Open the file in Chrome or Edge on a computer, or open Vaakhu from a web address in Safari or Chrome on your phone.</p></div></noscript>
+<div class="filters" id="filters"></div>
+<div class="shell">
+  <nav class="side" id="nav" aria-label="Analyses"></nav>
+  <main id="main"></main>
+</div>
+<div id="scrim" data-act="overlay-close" aria-hidden="true"></div>
+<dialog id="dlg" aria-label="Response"></dialog>
+<dialog id="ask" aria-label="Confirm"></dialog>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+'use strict';
+
+/* ================= constants ================= */
+const STORE_KEY = 'vakku-project-v1';
+const PALETTE = ['#1F6F61','#3B5BA9','#B07D12','#7A4E9C','#4F7F2A','#A6402B','#2E7D9A','#6B5B3E'];
+const DEFAULT_GROUPS = ['PWLE','Family member','Healthcare provider','Social worker'];
+const LANGS = ['Malayalam','English','Manglish','Mixed','Unknown'];
+const MODES = ['online','paper','transcript'];
+const DIM_LABEL = {group:'Group', lang:'Language', item:'Item', mode:'Mode'};
+
+const EN_STOP = "a about above after again against all am an and any are as at be because been before being below between both but by can could did do does doing down during each few for from further had has have having he her here hers herself him himself his how i if in into is it its itself just me more most my myself of off on once only or other our ours ourselves out over own same she should so some such than that the their theirs them themselves then there these they this those through to too under until up very was we were what when where which while who whom why will with would you your yours yourself yourselves also may might must shall i'm it's don't doesn't didn't can't won't isn't wasn't aren't that's there's etc".split(' ');
+const ML_STOP = "ഒരു ഈ ആ ഇത് അത് ഇതു അതു ഇവ അവ ഇവിടെ അവിടെ എന്ന് എന്നു എന്ന എന്നാൽ എന്നും എന്നിവ എന്നിട്ട് ആണ് ആണു ആകുന്നു ആയി ആയ ആയിരുന്നു ആയിരിക്കും ഉണ്ട് ഉണ്ടായിരുന്നു ഉള്ള കൂടി കൂടെ തന്നെ മാത്രം പോലെ പോലും വേണ്ടി കൊണ്ട് കൊണ്ടു മുതൽ വരെ പക്ഷേ പക്ഷെ അല്ലെങ്കിൽ അഥവാ ഒപ്പം ഞാൻ എന്റെ എനിക്ക് എന്നെ നമ്മൾ നമ്മുടെ നമുക്ക് ഞങ്ങൾ ഞങ്ങളുടെ നിങ്ങൾ നിങ്ങളുടെ അവൻ അവന്റെ അവന് അവനെ അവൾ അവളുടെ അവർ അവരുടെ അവർക്ക് അവരെ അതിന്റെ അതിന് അതിൽ ഇതിന്റെ ഇതിൽ ഇതിന് എല്ലാ എല്ലാം ചില ചിലർ വളരെ കുറച്ച് ഏറെ ഒക്കെ ഒന്നും ഏത് എന്ത് എന്തു എങ്ങനെ എപ്പോൾ എവിടെ ആര് ഇപ്പോൾ അപ്പോൾ പിന്നെ ശേഷം മുമ്പ് തുടങ്ങിയ".split(' ');
+const MG_STOP = "oru ee aa ithu athu ithe athe ennu enna ennal ennum aanu anu aayi ayi aayirunnu undu und ulla koodi koode thanne maathram mathram pole polum vendi kondu kond muthal vare pakshe allengil njan ente enikku enikk enne nammal nammude namukku njangal ningal ningalude avan avante avanu avane aval avalude avar avarude avarkku avare athinte athil ithil ellam ella chila valare kurachu kurach okke onnum enthu enth engane eppol evide ippol appol pinne shesham".split(' ');
+const MG_MARK = new Set("oru aanu anu aayi ayi aayirunnu undu und ulla illa alle alla njan ente enikku enikk enne nammal nammude ningal avan aval avar avante avalude avarude athu ithu athinte ennu ennal ennalum enna pakshe kure kurachu okke onnum venam venda vendi kondu kond poyi vannu cheythu cheyyan cheyyunnu kudi kudiyan kudiyane kudiyante kallu vellam veettil veedu achan appan amma makan makal makkal bharya pinne ippol eppozhum orikkalum vallathe thanne mathram maathram pole koode koodi ethra enthu enthinu engane avide ivide evide kazhinju kazhiyilla pattilla pattum parayan paranju ariyilla ariyam manassilayi vishamam santhosham kashtam prashnam naattukar samadhanam nirthi nirthan vilikkunnu kaanikkunnu kittiyappol sharikkum".split(' '));
+
+const ML_SUF = ['ത്തിലേക്ക്','ത്തിന്റെ','ങ്ങളുടെ','ങ്ങൾക്ക്','ങ്ങളിൽ','ങ്ങളെ','ങ്ങളും','ങ്ങൾ','്മാരുടെ','്മാർക്ക്','്മാരെ','്മാരും','്മാർ','മാരുടെ','മാരെ','മാർ','കളുടെ','കൾക്ക്','കളിൽ','കളെ','കളും','കൾ','ത്തിൽ','ത്തിന്','ത്തോട്','ത്താൽ','ത്തെ','യിലേക്ക്','യിലൂടെ','യുടെ','യ്ക്ക്','യിൽ','യോട്','യോടെ','യും','യാണ്','യായി','യെ','മാണ്','മായി','ിലേക്ക്','ിലൂടെ','ിന്റെ','ിനെ','ിന്','ിൽ','ുടെ','ോട്','ോടെ','്റെ','ക്ക്','വും','ും','ാണ്','ായി','െ'].sort((a,b)=>b.length-a.length);
+const MG_SUF = ['maarude','marude','kalude','ngalude','nteyum','yilekku','ilekku','kalil','ngal','maar','mar','kal','yude','inte','nte','ude','yile','yil','il','yine','ine','ne','ikku','ykku','kku','nu','yum','um','aanu','anu','oode','ode','odu'].sort((a,b)=>b.length-a.length);
+const CHILLU_BASE = {'\u0D7A':'\u0D23','\u0D7B':'\u0D28','\u0D7C':'\u0D30','\u0D7D':'\u0D32','\u0D7E':'\u0D33','\u0D7F':'\u0D15'};
+
+const STARTER_LISTS = [
+  {name:'Stigma and labelling', terms:'drunkard\ndrunk\nboozer\naddict\naddicts\nalcoholic\nalcoholics\nkudiya*\nകുടിയൻ\nകുടിയന്*\nകുടിയനെ\nകുടിയനായി\nമുഴുക്കുടിയൻ'},
+  {name:'Disease and treatment', terms:'disease\nillness\ndisorder\ndependence\ntreatment\nde-addiction\nwithdrawal\nrehab*\ntherapy\ncounsel*\ndoctor*\nhospital*\nmedical\nരോഗ*\nമദ്യാസക്തി\nചികിത്സ*\nആശുപത്രി*\nഡോക്ടർ*\nലഹരിവിമുക്തി*\ntreatment'},
+  {name:'Moral framing', terms:'moral\nweak*\nshame*\nsin\nsinful\nwillpower\ncharacter\nirresponsible\nlazy\ndisgrace\nനാണക്കേട്*\nഅപമാന*\nപാപ*\nകുറ്റപ്പെടുത്ത*\nnanakked*'},
+  {name:'Recovery and support', terms:'recover*\nsober*\nquit\nstopped\nabstinen*\nalcoholics anonymous\nsupport*\nhope*\nമോചന*\nമുക്തി\nനിർത്ത*\nപ്രതീക്ഷ*\nപിന്തുണ*\nnirthi\nnirthan'},
+  {name:'Family and home', terms:'family\nfamilies\nwife\nhusband\nchildren\nmother\nfather\nson\ndaughter\nhome\nrelatives\nകുടുംബ*\nഭാര്യ*\nഭർത്താവ്*\nമക്കൾ*\nഅമ്മ*\nഅച്ഛ*\nവീട്*\nveed*\nveett*\nmakan\nmakal\nbharya'},
+  {name:'Cinema and media', terms:'film*\nmovie*\ncinema*\nscene*\nactor*\nhero*\ncomedy\nscreen\nസിനിമ*\nനായക*\nരംഗ*\npadam\ncinemayil'}
+];
+
+const SAMPLE = [
+  ['Sample 01','PWLE','Q12 Media and drinking','paper','ആദ്യം കൂട്ടുകാരുടെ കൂടെ ആഘോഷങ്ങൾക്ക് മാത്രമായിരുന്നു കുടി. പിന്നെ അതൊരു രോഗമായി മാറി. നാട്ടുകാർ എന്നെ കുടിയൻ എന്ന് വിളിച്ചു, അത് വല്ലാത്ത നാണക്കേടായിരുന്നു.'],
+  ['Sample 02','PWLE','Q12 Media and drinking','online','cinemayil kudiyane comedy aayi kaanikkunnu, pakshe sharikkum athu valiya vishamam aanu. treatment kittiyappol aanu njan maariyathu.'],
+  ['Sample 03','PWLE','Q13 Help-seeking','online','Films showed drinking as heroic. I believed a man should drink to be strong. Only after de-addiction treatment did I see it as an illness, not a weakness.'],
+  ['Sample 04','Family member','Q13 Help-seeking','paper','അച്ഛന്റെ കുടി കാരണം വീട്ടിൽ എന്നും വഴക്കായിരുന്നു. കുടിയന്റെ കുടുംബം എന്ന പേര് ഞങ്ങൾക്ക് സമൂഹത്തിൽ കിട്ടി. ചികിത്സയ്ക്ക് ശേഷം പ്രതീക്ഷ വന്നു.'],
+  ['Sample 05','Family member','Q12 Media and drinking','online','My husband\'s drinking was treated as a joke by relatives. Nobody called it a disease. The family carried the shame for years.'],
+  ['Sample 06','Family member','Q13 Help-seeking','online','ente makan kudi nirthi, alcoholics anonymous meetingil pokunnu. ippol veettil samadhanam undu. pakshe naattukar ippozhum kudiyan ennu thanne vilikkunnu.'],
+  ['Sample 07','Healthcare provider','Q13 Help-seeking','online','Patients delay treatment because alcohol dependence is still seen as a moral failure. Withdrawal needs medical care, and stigma keeps people away from hospitals.'],
+  ['Sample 08','Healthcare provider','Q12 Media and drinking','paper','മദ്യാസക്തി ഒരു രോഗമാണ്. ചികിത്സയിലൂടെ മോചനം സാധ്യമാണ്. പക്ഷേ സിനിമകൾ പലപ്പോഴും കുടിയനെ തമാശക്കാരനായി കാണിക്കുന്നു.'],
+  ['Sample 09','Healthcare provider','Q12 Media and drinking','online','Films rarely show recovery. They show the drunk hero, then a sudden reform without treatment or support.'],
+  ['Sample 10','Social worker','Q13 Help-seeking','online','In community work, families hide the problem because of shame. Support groups and counselling help recovery more than advice about willpower.'],
+  ['Sample 11','Social worker','Q13 Help-seeking','paper','സമൂഹം കുടിയന്മാരെ കുറ്റപ്പെടുത്തുന്നു. കുടുംബത്തിനും ചികിത്സയ്ക്കും പിന്തുണ വേണം. ലഹരിവിമുക്തി കേന്ദ്രങ്ങളെക്കുറിച്ച് ആളുകൾക്ക് അറിവില്ല.'],
+  ['Sample 12','Social worker','Q12 Media and drinking','online','cinema kandu kure per vicharikkunnathu kudi oru style aanu ennu. awareness class edukkumpol athu maattan kure kashtam aanu.']
+];
+
+/* ================= utilities ================= */
+const $ = (s, el) => (el || document).querySelector(s);
+const $$ = (s, el) => Array.from((el || document).querySelectorAll(s));
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const cpLen = s => Array.from(s).length;
+const trunc = (s, n) => { const a = Array.from(String(s || '')); return a.length > n ? a.slice(0, n - 1).join('') + '…' : a.join(''); };
+function fmt(n, d){ if (n === null || n === undefined || !isFinite(n)) return '–'; d = d || 0; return Number(n).toLocaleString('en-IN', {minimumFractionDigits:d, maximumFractionDigits:d}); }
+function debounce(fn, ms){ let t; return function(){ const a = arguments; clearTimeout(t); t = setTimeout(() => fn.apply(null, a), ms); }; }
+function uid(){ return 'd' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+function today(){ return new Date().toISOString().slice(0, 10); }
+function download(name, content, type){
+  const blob = new Blob([content], {type: type || 'text/plain'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 800);
+}
+function toCSV(rows){
+  return '\uFEFF' + rows.map(r => r.map(v => { const s = String(v == null ? '' : v); return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }).join(',')).join('\r\n');
+}
+function exportCSV(name, header, rows){ download(name, toCSV([header].concat(rows)), 'text/csv;charset=utf-8'); toast('Downloaded ' + name); }
+function toast(msg){ const t = $('#toast'); if (!t) return; t.textContent = msg; t.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), 2800); }
+function readFile(file){ return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result)); r.onerror = () => rej(r.error); r.readAsText(file, 'utf-8'); }); }
+function splitWords(s){ return String(s || '').split(/[\s,]+/).map(x => x.trim()).filter(Boolean); }
+
+/* ================= text processing ================= */
+function normalizeText(t){
+  return String(t || '').normalize('NFC')
+    .replace(/\u0D23\u0D4D\u200D/g, '\u0D7A')
+    .replace(/\u0D28\u0D4D\u200D/g, '\u0D7B')
+    .replace(/\u0D30\u0D4D\u200D/g, '\u0D7C')
+    .replace(/\u0D32\u0D4D\u200D/g, '\u0D7D')
+    .replace(/\u0D33\u0D4D\u200D/g, '\u0D7E')
+    .replace(/\u0D15\u0D4D\u200D/g, '\u0D7F')
+    .replace(/[\u200B\u200C\u200D\uFEFF]/g, '');
+}
+const TOKEN_RE = /[\u0D00-\u0D7F]+(?:-[\u0D00-\u0D7F]+)*|[A-Za-z\u00C0-\u024F]+(?:['\u2019\-][A-Za-z\u00C0-\u024F]+)*|\d+(?:[.,:]\d+)*/g;
+const SEG_RE = /[.!?;:\u0964\n\r]/;
+function tokenize(norm){
+  const out = []; let m, seg = 0, last = 0;
+  TOKEN_RE.lastIndex = 0;
+  while ((m = TOKEN_RE.exec(norm))) {
+    if (out.length && SEG_RE.test(norm.slice(last, m.index))) seg++;
+    const raw = m[0];
+    const sc = /[\u0D00-\u0D7F]/.test(raw[0]) ? 'm' : (/\d/.test(raw[0]) ? 'n' : 'l');
+    out.push({w: raw.toLowerCase().replace(/\u2019/g, "'"), s: m.index, e: m.index + raw.length, g: seg, sc});
+    last = m.index + raw.length;
+  }
+  return out;
+}
+function detectLang(tokens){
+  let m = 0, l = 0, mg = 0;
+  for (const t of tokens) { if (t.sc === 'm') m++; else if (t.sc === 'l') { l++; if (MG_MARK.has(t.w)) mg++; } }
+  const tot = m + l;
+  if (!tot) return 'Unknown';
+  if (m / tot >= 0.8) return 'Malayalam';
+  if (l / tot >= 0.8) return ((mg >= 2 && mg / l >= 0.08) || (mg >= 1 && l <= 6)) ? 'Manglish' : 'English';
+  return 'Mixed';
+}
+function mlKey(w){
+  if (!/[\u0D00-\u0D7F]/.test(w)) return null;
+  let s = w;
+  for (const suf of ML_SUF) { if (s.endsWith(suf) && cpLen(s) - cpLen(suf) >= 2) { s = s.slice(0, -suf.length); break; } }
+  const last = s.slice(-1);
+  if (CHILLU_BASE[last]) s = s.slice(0, -1) + CHILLU_BASE[last];
+  if (s.endsWith('\u0D02')) s = s.slice(0, -1);
+  if (s.endsWith('\u0D4D')) s = s.slice(0, -1);
+  return cpLen(s) >= 2 ? s : null;
+}
+function undouble(s){ return /([bcdfgkmnprtvz])\1$/.test(s) ? s.slice(0, -1) : s; }
+function enKey(w){
+  if (!/^[a-z]/.test(w)) return null;
+  let s = w.replace(/'s$/, '');
+  const L = s.length;
+  if (L > 4 && s.endsWith('ies')) s = s.slice(0, -3) + 'y';
+  else if (L > 4 && /(sses|xes|zes|ches|shes)$/.test(s)) s = s.slice(0, -2);
+  else if (L > 3 && s.endsWith('s') && !/(ss|us|is)$/.test(s)) s = s.slice(0, -1);
+  else if (L > 5 && s.endsWith('ing')) s = undouble(s.slice(0, -3));
+  else if (L > 4 && s.endsWith('ed')) s = undouble(s.slice(0, -2));
+  return s;
+}
+function mgKey(w){
+  if (!/^[a-z]/.test(w)) return null;
+  let s = w;
+  for (const suf of MG_SUF) { if (s.endsWith(suf) && s.length - suf.length >= 3) { s = s.slice(0, -suf.length); break; } }
+  s = s.replace(/aa/g, 'a').replace(/ee/g, 'i').replace(/oo/g, 'u').replace(/([^aeiou])\1/g, '$1');
+  if (s.length > 4 && /[aeiou]n$/.test(s)) s = s.slice(0, -1);
+  return s;
+}
+
+/* ================= state ================= */
+function freshUI(){
+  return {view:'data', sub:'csv', f:{group:'', item:'', lang:'', mode:''}, stopOn:true, groupOn:true, dataQ:'', dataLimit:200, typeDraft:null,
+    freq:{n:1, min:1, q:'', show:'table', top:200},
+    kwic:{q:'', span:7, regex:false, sort:'doc', near:'', nearSpan:5, limit:300},
+    colloc:{q:'', L:5, R:5, min:2, stat:'ld'},
+    key:{dim:'group', target:'', ref:'', min:3, p:3.84, show:'over'},
+    lex:{sel:0, measure:'per1k'},
+    disp:{q:''},
+    cooc:{terms:'', unit:'doc', measure:'count'},
+    forms:{q:''},
+    code:{doc:'', mode:'read', active:[], q:'', seg:''}, cb:{sel:''}, ret:{code:'', ess:false, q:''}, ca:{measure:'segs', unit:'doc'}, memo:{sel:''}};
+}
+function freshState(){
+  return {v:1, docs:[], groups:DEFAULT_GROUPS.slice(), lemmaMap:{}, stop:{en:EN_STOP.slice(), ml:ML_STOP.slice(), mg:MG_STOP.slice()}, lexicons:[], codes:[], segs:[], wholistic:{}, lineNotes:{}, memos:[], settings:{minLen:1, numbers:false}, ui:freshUI()};
+}
+let S = freshState();
+let STOP = new Set();
+let CSV = null, SUGG = null;
+let DLG = {id:null, hl:'', near:'', regex:false, edit:false, list:[]};
+
+function rebuildStop(){ STOP = new Set([].concat(S.stop.en, S.stop.ml, S.stop.mg).map(w => normalizeText(w).toLowerCase().trim()).filter(Boolean)); }
+function serialize(){ return JSON.stringify(S, (k, v) => (typeof k === 'string' && k.charAt(0) === '_') ? undefined : v); }
+function hydrate(obj){
+  obj = obj || {};
+  const s = freshState();
+  if (Array.isArray(obj.groups)) s.groups = obj.groups.slice();
+  if (obj.lemmaMap && typeof obj.lemmaMap === 'object') s.lemmaMap = Object.assign({}, obj.lemmaMap);
+  if (obj.stop) s.stop = Object.assign(s.stop, obj.stop);
+  if (Array.isArray(obj.lexicons)) s.lexicons = obj.lexicons.map(x => ({name:String(x.name || 'Word list'), color:x.color || PALETTE[0], terms:String(x.terms || '')}));
+  if (obj.settings) s.settings = Object.assign(s.settings, obj.settings);
+  if (Array.isArray(obj.codes)) s.codes = obj.codes.map(c => ({id:c.id || 'c' + uid(), name:String(c.name || 'Code'), color:c.color || PALETTE[0], parent:c.parent || '', def:c.def || '', incl:c.incl || '', excl:c.excl || '', ex:c.ex || ''}));
+  if (Array.isArray(obj.segs)) s.segs = obj.segs.filter(g => g && g.doc).map(g => ({id:g.id || 's' + uid(), doc:g.doc, s:+g.s || 0, e:+g.e || 0, q:String(g.q || ''), codes:Array.isArray(g.codes) ? g.codes.slice() : [], memo:g.memo || '', ess:!!g.ess, at:g.at || ''}));
+  if (obj.wholistic && typeof obj.wholistic === 'object') s.wholistic = Object.assign({}, obj.wholistic);
+  if (obj.lineNotes && typeof obj.lineNotes === 'object') s.lineNotes = JSON.parse(JSON.stringify(obj.lineNotes));
+  if (Array.isArray(obj.memos)) s.memos = obj.memos.map(m => ({id:m.id || 'm' + uid(), title:String(m.title || 'Memo'), text:String(m.text || ''), at:m.at || ''}));
+  const u = obj.ui || {};
+  for (const k of Object.keys(s.ui)) {
+    if (u[k] === undefined) continue;
+    if (s.ui[k] && typeof s.ui[k] === 'object' && !Array.isArray(s.ui[k])) s.ui[k] = Object.assign(s.ui[k], u[k]);
+    else s.ui[k] = u[k];
+  }
+  s.docs = (obj.docs || []).map(d => ({id:d.id || uid(), pid:String(d.pid || ''), group:String(d.group || ''), item:String(d.item || ''), lang:d.lang || '', mode:d.mode || 'online', text:String(d.text || '')}));
+  return s;
+}
+function persist(){
+  try { localStorage.setItem(STORE_KEY, serialize()); persist.warned = false; }
+  catch (e) { if (!persist.warned) { persist.warned = true; toast('Autosave is full or blocked. Use Save project to keep a copy.'); } }
+}
+const persistSoon = debounce(persist, 700);
+function load(){
+  try { const raw = localStorage.getItem(STORE_KEY); if (raw) S = hydrate(JSON.parse(raw)); }
+  catch (e) { S = freshState(); }
+  rebuildStop();
+}
+function ensureGroups(){ for (const d of S.docs) if (d.group && S.groups.indexOf(d.group) < 0) S.groups.push(d.group); }
+function changed(silent){ ensureGroups(); purge(); persistSoon(); if (!silent) render(); }
+
+/* ================= corpus helpers ================= */
+function prep(d){
+  if (d._src !== d.text) { d._src = d.text; d._norm = normalizeText(d.text); d._tok = tokenize(d._norm); d._lang = detectLang(d._tok); d._wc = d._tok.filter(t => t.sc !== 'n').length; }
+  return d;
+}
+const langOf = d => d.lang || prep(d)._lang;
+const wordCount = d => prep(d)._wc;
+const lem = w => S.lemmaMap[w] || w;
+const keyOf = w => S.ui.groupOn ? lem(w) : w;
+const isStop = w => STOP.has(w) || (S.ui.groupOn && STOP.has(lem(w)));
+function countable(t){
+  if (t.sc === 'n' && !S.settings.numbers) return false;
+  if (S.settings.minLen > 1 && cpLen(t.w) < S.settings.minLen) return false;
+  if (S.ui.stopOn && isStop(t.w)) return false;
+  return true;
+}
+function dimOf(d, dim){
+  if (dim === 'group') return d.group || 'Ungrouped';
+  if (dim === 'lang') return langOf(d);
+  if (dim === 'item') return d.item || '(no item)';
+  return d.mode || 'online';
+}
+function filtered(skip){
+  const f = S.ui.f;
+  return S.docs.filter(d => {
+    prep(d);
+    if (f.group && skip !== 'group' && dimOf(d, 'group') !== f.group) return false;
+    if (f.item && skip !== 'item' && dimOf(d, 'item') !== f.item) return false;
+    if (f.lang && skip !== 'lang' && langOf(d) !== f.lang) return false;
+    if (f.mode && skip !== 'mode' && dimOf(d, 'mode') !== f.mode) return false;
+    return true;
+  });
+}
+function groupsIn(docs){
+  const set = new Set(docs.map(d => d.group || 'Ungrouped'));
+  return S.groups.filter(g => set.has(g)).concat(Array.from(set).filter(g => S.groups.indexOf(g) < 0));
+}
+function valuesOf(dim, docs){
+  if (dim === 'group') return groupsIn(docs);
+  const set = new Set(docs.map(d => dimOf(d, dim)));
+  if (dim === 'lang') return LANGS.filter(l => set.has(l));
+  return Array.from(set).sort((a, b) => a.localeCompare(b));
+}
+const allItems = () => Array.from(new Set(S.docs.map(d => d.item).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+function colorOf(g){ const i = S.groups.indexOf(g); return i < 0 ? '#8A949E' : PALETTE[i % PALETTE.length]; }
+function totals(docs){ let N = 0; const g = {}; for (const d of docs) { const n = wordCount(d); N += n; const k = d.group || 'Ungrouped'; g[k] = (g[k] || 0) + n; } return {N, g}; }
+
+/* ================= queries ================= */
+function makeMatcher(p, regex, forms){
+  if (regex) {
+    let re; try { re = new RegExp('^(?:' + p + ')$', 'iu'); } catch (e) { throw new Error('"' + p + '" is not a valid regular expression.'); }
+    return w => re.test(w);
+  }
+  if (/[*?]/.test(p)) {
+    const re = new RegExp('^' + p.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.') + '$', 'u');
+    return forms ? (w => re.test(w) || re.test(lem(w))) : (w => re.test(w));
+  }
+  const k = lem(p);
+  return forms ? (w => w === p || lem(w) === k) : (w => w === p);
+}
+function parsePhrase(str, regex, forms){
+  const parts = regex ? str.trim().split(/\s+/) : normalizeText(str).toLowerCase().replace(/\u2019/g, "'").split(/\s+/).filter(Boolean);
+  return parts.map(p => makeMatcher(p, regex, forms));
+}
+function parseQuery(q, opts){
+  opts = opts || {};
+  const forms = opts.forms === undefined ? S.ui.groupOn : opts.forms;
+  const q2 = String(q || '').trim();
+  if (!q2) return [];
+  const alts = opts.regex ? [q2] : q2.split('|').map(s => s.trim()).filter(Boolean);
+  return alts.map(a => parsePhrase(a, !!opts.regex, forms)).filter(a => a.length);
+}
+function matchAt(toks, i, seq){
+  if (i + seq.length > toks.length) return false;
+  for (let j = 0; j < seq.length; j++) if (!seq[j](toks[i + j].w)) return false;
+  return true;
+}
+function findHits(d, alts){
+  const toks = d._tok, hits = [];
+  for (let i = 0; i < toks.length; i++) {
+    for (const seq of alts) { if (matchAt(toks, i, seq)) { hits.push({i, len:seq.length}); break; } }
+  }
+  return hits;
+}
+
+/* ================= analyses ================= */
+function ngramKeys(d, n){
+  const toks = d._tok, out = [];
+  if (n === 1) { for (const t of toks) if (countable(t)) out.push(keyOf(t.w)); return out; }
+  for (let i = 0; i + n <= toks.length; i++) {
+    const g = toks[i].g; let ok = true, allStop = true; const parts = [];
+    for (let j = 0; j < n; j++) {
+      const t = toks[i + j];
+      if (t.g !== g || (t.sc === 'n' && !S.settings.numbers)) { ok = false; break; }
+      parts.push(keyOf(t.w)); if (!isStop(t.w)) allStop = false;
+    }
+    if (!ok) continue;
+    if (S.ui.stopOn && (allStop || isStop(toks[i].w) || isStop(toks[i + n - 1].w))) continue;
+    out.push(parts.join(' '));
+  }
+  return out;
+}
+function freqTable(docs, n){
+  const f = new Map(), df = new Map(), by = new Map();
+  for (const d of docs) {
+    const keys = ngramKeys(d, n), seen = new Set(), g = d.group || 'Ungrouped';
+    for (const k of keys) {
+      f.set(k, (f.get(k) || 0) + 1);
+      if (!seen.has(k)) { seen.add(k); df.set(k, (df.get(k) || 0) + 1); }
+      let m = by.get(k); if (!m) { m = {}; by.set(k, m); } m[g] = (m[g] || 0) + 1;
+    }
+  }
+  return Array.from(f, ([k, c]) => ({k, f:c, df:df.get(k), by:by.get(k)})).sort((a, b) => b.f - a.f || a.k.localeCompare(b.k));
+}
+function kwic(docs, o){
+  const alts = parseQuery(o.q, {regex:o.regex});
+  const near = o.near ? parseQuery(o.near, {}) : null;
+  const span = +o.span || 7, ns = +o.nearSpan || 5, lines = [];
+  for (const d of docs) {
+    const toks = d._tok;
+    for (const h of findHits(d, alts)) {
+      if (near) {
+        let ok = false;
+        for (let j = Math.max(0, h.i - ns); j < Math.min(toks.length, h.i + h.len + ns) && !ok; j++) {
+          if (j >= h.i && j < h.i + h.len) continue;
+          for (const seq of near) if (matchAt(toks, j, seq)) { ok = true; break; }
+        }
+        if (!ok) continue;
+      }
+      const a = Math.max(0, h.i - span), b = Math.min(toks.length - 1, h.i + h.len - 1 + span);
+      const ns0 = toks[h.i].s, ne0 = toks[h.i + h.len - 1].e;
+      lines.push({d, i:h.i, len:h.len,
+        left:(a > 0 ? '… ' : '') + d._norm.slice(toks[a].s, ns0).replace(/\s+/g, ' '),
+        node:d._norm.slice(ns0, ne0),
+        right:d._norm.slice(ne0, toks[b].e).replace(/\s+/g, ' ') + (b < toks.length - 1 ? ' …' : ''),
+        L1:(toks[h.i - 1] || {}).w || '', R1:(toks[h.i + h.len] || {}).w || '', N:toks[h.i].w});
+    }
+  }
+  return lines;
+}
+function g2(o11, rowTot, colTot, N){
+  const o12 = Math.max(0, rowTot - o11), o21 = Math.max(0, colTot - o11), o22 = Math.max(0, N - o11 - o12 - o21);
+  const r1 = o11 + o12, r2 = o21 + o22, c1 = o11 + o21, c2 = o12 + o22, tot = r1 + r2;
+  const cell = (o, r, c) => { const e = r * c / tot; return o > 0 && e > 0 ? o * Math.log(o / e) : 0; };
+  return 2 * (cell(o11, r1, c1) + cell(o12, r1, c2) + cell(o21, r2, c1) + cell(o22, r2, c2));
+}
+function collocates(docs, o){
+  const alts = parseQuery(o.q, {});
+  const L = Math.max(0, +o.L || 0), R = Math.max(0, +o.R || 0), co = new Map(), fTot = new Map();
+  let nodeF = 0, N = 0;
+  for (const d of docs) {
+    const toks = d._tok;
+    for (const t of toks) { if (t.sc === 'n' && !S.settings.numbers) continue; N++; const k = keyOf(t.w); fTot.set(k, (fTot.get(k) || 0) + 1); }
+    const hits = findHits(d, alts); nodeF += hits.length;
+    for (const h of hits) {
+      for (let j = Math.max(0, h.i - L); j < Math.min(toks.length, h.i + h.len + R); j++) {
+        if (j >= h.i && j < h.i + h.len) continue;
+        const t = toks[j]; if (!countable(t)) continue;
+        const k = keyOf(t.w); let c = co.get(k); if (!c) { c = {o:0, l:0, r:0}; co.set(k, c); }
+        c.o++; if (j < h.i) c.l++; else c.r++;
+      }
+    }
+  }
+  const W = Math.max(1, L + R), rows = [];
+  for (const [k, c] of co) {
+    if (c.o < (+o.min || 1)) continue;
+    const fc = fTot.get(k) || c.o, E = nodeF * fc * W / Math.max(1, N);
+    rows.push({k, o:c.o, l:c.l, r:c.r, fc, E, mi:Math.log2(c.o / E), t:(c.o - E) / Math.sqrt(c.o), ll:(c.o >= E ? 1 : -1) * g2(c.o, nodeF * W, fc, N), ld:14 + Math.log2(2 * c.o / (nodeF + fc))});
+  }
+  return {rows, nodeF, N};
+}
+function countMap(docs){
+  const m = new Map(); let total = 0;
+  for (const d of docs) for (const t of d._tok) {
+    if (t.sc === 'n' && !S.settings.numbers) continue;
+    total++; if (!countable(t)) continue;
+    const k = keyOf(t.w); m.set(k, (m.get(k) || 0) + 1);
+  }
+  return {m, total};
+}
+function keyness(tDocs, rDocs){
+  const T = countMap(tDocs), Rf = countMap(rDocs), c = T.total, d = Rf.total, rows = [];
+  if (!c || !d) return {rows, c, d};
+  const keys = new Set(Array.from(T.m.keys()).concat(Array.from(Rf.m.keys())));
+  for (const k of keys) {
+    const a = T.m.get(k) || 0, b = Rf.m.get(k) || 0;
+    const E1 = c * (a + b) / (c + d), E2 = d * (a + b) / (c + d);
+    const ll = 2 * ((a ? a * Math.log(a / E1) : 0) + (b ? b * Math.log(b / E2) : 0));
+    rows.push({k, a, b, pa:a / c * 1000, pb:b / d * 1000, ll, lr:Math.log2(((a || 0.5) / c) / ((b || 0.5) / d)), over:a / c > b / d});
+  }
+  return {rows, c, d};
+}
+function stars(ll){ return ll >= 15.13 ? '****' : ll >= 10.83 ? '***' : ll >= 6.63 ? '**' : ll >= 3.84 ? '*' : ''; }
+function lexTerms(lx){ return String(lx.terms || '').split(/\n+/).map(s => s.trim()).filter(Boolean).map(t => { let seq = null; try { seq = parsePhrase(t, false, S.ui.groupOn); } catch (e) {} return {t, seq}; }).filter(x => x.seq && x.seq.length); }
+function lexCount(docs, lx){
+  const terms = lexTerms(lx), res = {byG:{}, terms:new Map(), total:0, docsWith:0, docs:docs.length, words:0};
+  for (const d of docs) {
+    const toks = d._tok, g = d.group || 'Ungrouped'; let hd = 0;
+    for (let i = 0; i < toks.length; i++) {
+      for (const x of terms) {
+        if (matchAt(toks, i, x.seq)) {
+          hd++; let th = res.terms.get(x.t); if (!th) { th = {n:0, byG:{}}; res.terms.set(x.t, th); }
+          th.n++; th.byG[g] = (th.byG[g] || 0) + 1; break;
+        }
+      }
+    }
+    const bg = res.byG[g] || (res.byG[g] = {hits:0, docsWith:0, docs:0, words:0});
+    bg.hits += hd; bg.docs++; bg.words += wordCount(d); res.words += wordCount(d);
+    if (hd) { bg.docsWith++; res.docsWith++; }
+    res.total += hd;
+  }
+  return res;
+}
+function lexMeasure(r, m){ if (!r || !r.docs) return 0; if (m === 'pct') return r.docsWith / r.docs * 100; if (m === 'raw') return r.hits; return r.words ? r.hits / r.words * 1000 : 0; }
+function dispersion(docs, q){
+  const alts = parseQuery(q, {}), rows = []; let total = 0, words = 0;
+  for (const d of docs) { const n = d._tok.length, hits = findHits(d, alts); total += hits.length; words += n; rows.push({d, n, h:hits.length, pos:hits.map(h => n > 1 ? h.i / (n - 1) : 0.5)}); }
+  let dp = 0, minS = 1;
+  if (total && words) { for (const r of rows) { dp += Math.abs(r.n / words - r.h / total); if (r.n) minS = Math.min(minS, r.n / words); } dp /= 2; }
+  return {rows, total, words, dp, dpn:total && rows.length > 1 ? dp / (1 - minS) : 0, range:rows.filter(r => r.h).length};
+}
+function cooc(docs, terms, unit){
+  const ms = terms.map(t => parseQuery(t, {}));
+  const k = ms.length, M = Array.from({length:k}, () => new Array(k).fill(0));
+  let units = 0;
+  for (const d of docs) {
+    const pos = ms.map(a => findHits(d, a).map(h => h.i));
+    if (unit === 'doc' || unit === 'sent') {
+      let sets;
+      if (unit === 'doc') { units++; sets = [pos.map(p => p.length > 0)]; }
+      else {
+        const nSeg = d._tok.length ? d._tok[d._tok.length - 1].g + 1 : 0; units += nSeg;
+        sets = Array.from({length:nSeg}, () => new Array(k).fill(false));
+        pos.forEach((p, a) => p.forEach(i => { sets[d._tok[i].g][a] = true; }));
+      }
+      for (const has of sets) for (let a = 0; a < k; a++) { if (!has[a]) continue; M[a][a]++; for (let b = a + 1; b < k; b++) if (has[b]) { M[a][b]++; M[b][a]++; } }
+    } else {
+      const w = +unit;
+      for (let a = 0; a < k; a++) {
+        M[a][a] += pos[a].length;
+        for (let b = 0; b < k; b++) { if (a === b) continue; for (const pa of pos[a]) if (pos[b].some(pb => pb !== pa && Math.abs(pb - pa) <= w)) M[a][b]++; }
+      }
+    }
+  }
+  return {M, units};
+}
+function groupStats(docs, label){
+  let words = 0; const types = new Set(), stream = [];
+  for (const d of docs) for (const t of d._tok) { if (t.sc === 'n') continue; words++; const k = keyOf(t.w); types.add(k); stream.push(k); }
+  let sttr = null;
+  if (stream.length >= 100) { let sum = 0, c = 0; for (let i = 0; i + 100 <= stream.length; i += 100) { sum += new Set(stream.slice(i, i + 100)).size / 100; c++; } sttr = sum / c; }
+  return {label, docs:docs.length, words, types:types.size, mean:docs.length ? words / docs.length : 0, ttr:words ? types.size / words : 0, sttr};
+}
+function suggestForms(){
+  const freq = new Map(), kind = new Map();
+  for (const d of S.docs) {
+    prep(d); const lang = langOf(d);
+    for (const t of d._tok) {
+      if (t.sc === 'n' || S.lemmaMap[t.w] || STOP.has(t.w)) continue;
+      freq.set(t.w, (freq.get(t.w) || 0) + 1);
+      if (!kind.has(t.w)) kind.set(t.w, t.sc === 'm' ? 'ml' : (lang === 'Manglish' ? 'mg' : 'en'));
+    }
+  }
+  const groups = new Map();
+  for (const [w, f] of freq) {
+    const kd = kind.get(w), key = kd === 'ml' ? mlKey(w) : kd === 'mg' ? mgKey(w) : enKey(w);
+    if (!key) continue;
+    const gk = kd + ':' + key; let g = groups.get(gk);
+    if (!g) { g = {key:gk, forms:[]}; groups.set(gk, g); }
+    g.forms.push({w, f});
+  }
+  return Array.from(groups.values()).filter(g => g.forms.length > 1).map(g => {
+    g.forms.sort((a, b) => cpLen(a.w) - cpLen(b.w) || b.f - a.f);
+    g.total = g.forms.reduce((s, x) => s + x.f, 0); g.head = g.forms[0].w; return g;
+  }).sort((a, b) => b.total - a.total);
+}
+function mergeForms(head, forms){
+  head = normalizeText(head).toLowerCase().trim();
+  if (!head) return 0;
+  head = S.lemmaMap[head] || head;
+  delete S.lemmaMap[head];
+  const fs = forms.map(f => normalizeText(f).toLowerCase().trim()).filter(f => f && f !== head);
+  for (const f of fs) S.lemmaMap[f] = head;
+  for (const k of Object.keys(S.lemmaMap)) if (fs.indexOf(S.lemmaMap[k]) >= 0) S.lemmaMap[k] = head;
+  return fs.length;
+}
+
+/* ================= charts ================= */
+const isPhone = () => !!(window.matchMedia && window.matchMedia('(max-width:860px)').matches);
+function chartW(){ const m = document.getElementById('main'), cw = m && m.clientWidth ? m.clientWidth - (isPhone() ? 30 : 60) : 680; return Math.max(300, Math.min(680, cw)); }
+function hbar(items, o){
+  o = o || {};
+  if (!items.length) return '';
+  const w = o.w || chartW(), bh = o.bh || 20, gap = 6, lw = o.lw || (w < 480 ? 112 : 170), tl = lw < 150 ? 15 : 26, f = o.fmt || (v => fmt(v, 1));
+  const max = Math.max.apply(null, items.map(i => i.v).concat([0])) || 1, pw = w - lw - 70, h = items.length * (bh + gap) + gap;
+  let s = '<svg class="chart" viewBox="0 0 ' + w + ' ' + h + '" role="img" aria-label="' + esc(o.label || 'Bar chart') + '">';
+  items.forEach((it, i) => {
+    const y = gap + i * (bh + gap), bw = Math.max(1, it.v / max * pw);
+    s += '<text x="' + (lw - 8) + '" y="' + (y + bh / 2) + '" class="lbl" text-anchor="end" dominant-baseline="middle">' + esc(trunc(it.label, tl)) + '</text>' +
+      '<rect x="' + lw + '" y="' + y + '" width="' + bw.toFixed(1) + '" height="' + bh + '" rx="2" fill="' + (it.c || 'var(--green)') + '"><title>' + esc(it.label + ': ' + f(it.v)) + '</title></rect>' +
+      '<text x="' + (lw + bw + 6).toFixed(1) + '" y="' + (y + bh / 2) + '" class="val" dominant-baseline="middle">' + esc(f(it.v)) + '</text>';
+  });
+  return s + '</svg>';
+}
+function grouped(cats, series, val, o){
+  o = o || {};
+  if (!cats.length || !series.length) return '';
+  const w = o.w || chartW(), bh = 14, lw = w < 480 ? 112 : 170, tl = lw < 150 ? 15 : 26, pw = w - lw - 70, f = o.fmt || (v => fmt(v, 1));
+  let max = 0; cats.forEach(c => series.forEach(s => { max = Math.max(max, val(c, s)); })); max = max || 1;
+  const clusterH = series.length * (bh + 3) + 12, h = cats.length * clusterH + 6;
+  let s = '<svg class="chart" viewBox="0 0 ' + w + ' ' + h + '" role="img" aria-label="Grouped bar chart">';
+  cats.forEach((c, ci) => {
+    const y0 = 6 + ci * clusterH;
+    s += '<text x="' + (lw - 8) + '" y="' + (y0 + (series.length * (bh + 3)) / 2) + '" class="lbl" text-anchor="end" dominant-baseline="middle">' + esc(trunc(c.label, tl)) + '</text>';
+    series.forEach((sr, si) => {
+      const v = val(c, sr), y = y0 + si * (bh + 3), bw = Math.max(v > 0 ? 1 : 0, v / max * pw);
+      s += '<rect x="' + lw + '" y="' + y + '" width="' + bw.toFixed(1) + '" height="' + bh + '" rx="2" fill="' + sr.c + '"><title>' + esc(c.label + ', ' + sr.label + ': ' + f(v)) + '</title></rect>' +
+        '<text x="' + (lw + bw + 5).toFixed(1) + '" y="' + (y + bh / 2) + '" class="val" dominant-baseline="middle">' + esc(f(v)) + '</text>';
+    });
+  });
+  return s + '</svg>' + '<div class="legend">' + series.map(sr => '<span><span class="dot" style="--c:' + sr.c + '"></span>' + esc(sr.label) + '</span>').join('') + '</div>';
+}
+function diverging(items, o){
+  o = o || {};
+  if (!items.length) return '';
+  const w = o.w || chartW(), bh = 18, gap = 5, lw = w < 480 ? 104 : 170, tl = lw < 150 ? 14 : 26, mid = lw + (w - lw - 20) / 2, half = (w - lw - 20) / 2 - 40;
+  const max = Math.max.apply(null, items.map(i => Math.abs(i.v)).concat([0])) || 1, h = items.length * (bh + gap) + gap;
+  let s = '<svg class="chart" viewBox="0 0 ' + w + ' ' + h + '" role="img" aria-label="Log ratio chart"><line class="axis" x1="' + mid + '" x2="' + mid + '" y1="0" y2="' + h + '"/>';
+  items.forEach((it, i) => {
+    const y = gap + i * (bh + gap), bw = Math.abs(it.v) / max * half, x = it.v >= 0 ? mid : mid - bw;
+    s += '<text x="' + (lw - 8) + '" y="' + (y + bh / 2) + '" class="lbl" text-anchor="end" dominant-baseline="middle">' + esc(trunc(it.label, tl)) + '</text>' +
+      '<rect x="' + x.toFixed(1) + '" y="' + y + '" width="' + Math.max(1, bw).toFixed(1) + '" height="' + bh + '" rx="2" fill="' + (it.v >= 0 ? 'var(--green)' : '#B07D12') + '"><title>' + esc(it.label + ': log ratio ' + fmt(it.v, 2)) + '</title></rect>' +
+      '<text x="' + (it.v >= 0 ? mid + bw + 5 : mid - bw - 5).toFixed(1) + '" y="' + (y + bh / 2) + '" class="val" text-anchor="' + (it.v >= 0 ? 'start' : 'end') + '" dominant-baseline="middle">' + fmt(it.v, 2) + '</text>';
+  });
+  return s + '</svg>';
+}
+
+/* ================= rendering shell ================= */
+const VIEWS = [['data','Responses'],['overview','Overview'],'Lexical analysis',['freq','Word frequency'],['kwic','Concordance'],['colloc','Collocates'],['key','Keyness'],['lex','Word lists'],['disp','Dispersion'],['cooc','Co-occurrence'],'Coding',['code','Coding workspace'],['codebook','Codebook'],['segs','Coded segments'],['canal','Code analysis'],['memos','Memos & journal'],null,['forms','Word forms & stopwords']];
+const R = {};
+
+function render(){
+  const ae = document.activeElement, fid = ae && ae.id;
+  let sel = null; try { if (ae && typeof ae.selectionStart === 'number') sel = [ae.selectionStart, ae.selectionEnd]; } catch (e) {}
+  renderStatus(); renderFilters(); renderNav();
+  const v = R[S.ui.view] ? S.ui.view : 'data';
+  document.body.className = document.body.className.replace(/\bview-\S+/g, '').trim() + ' view-' + v;
+  const vt = VIEWS.find(x => Array.isArray(x) && x[0] === v); const at = $('#apptitle'); if (at) at.textContent = vt ? vt[1] : '';
+  let html;
+  try { html = R[v](); }
+  catch (e) { console.error(e); html = '<div class="panel"><h3>This view could not be drawn</h3><p class="hint">' + esc(e.message) + '</p></div>'; }
+  $('#main').innerHTML = html;
+  if (v === 'code') afterCodeRender();
+  if (fid) { const el = document.getElementById(fid); if (el && el !== document.activeElement) { el.focus({preventScroll:true}); if (sel && el.setSelectionRange) try { el.setSelectionRange(sel[0], sel[1]); } catch (e) {} } }
+}
+function renderStatus(){
+  let words = 0; for (const d of S.docs) words += wordCount(d);
+  $('#status').textContent = fmt(S.docs.length) + ' responses, ' + fmt(words) + ' words';
+}
+function renderNav(){
+  let words = 0; for (const d of S.docs) words += wordCount(d);
+  const proj = '<div class="navproj mobile-only"><p class="count">' + fmt(S.docs.length) + ' responses, ' + fmt(words) + ' words</p><div class="actions"><button data-act="proj-save">Save project</button><button data-act="proj-open">Open project</button><button data-act="proj-new">New project</button></div><p class="hint" style="margin-top:10px">Works offline. Your data stays on this device.</p></div>';
+  $('#nav').innerHTML = VIEWS.map(v => typeof v === 'string' ? '<div class="navlabel">' + esc(v) + '</div>' : v ? '<button data-view="' + v[0] + '" class="' + (S.ui.view === v[0] ? 'on' : '') + '"' + (S.ui.view === v[0] ? ' aria-current="page"' : '') + '>' + esc(v[1]) + '</button>' : '<div class="sep"></div>').join('') + proj;
+}
+function optList(vals, cur, allLabel){ return '<option value="">' + esc(allLabel) + '</option>' + vals.map(v => '<option value="' + esc(v) + '"' + (v === cur ? ' selected' : '') + '>' + esc(v) + '</option>').join(''); }
+function renderFilters(){
+  const f = S.ui.f, langs = LANGS.filter(l => S.docs.some(d => langOf(d) === l)), modes = MODES.filter(m => S.docs.some(d => d.mode === m));
+  const shown = filtered().length;
+  $('#filters').innerHTML =
+    '<label>Group<select id="flt-group">' + optList(groupsIn(S.docs), f.group, 'All groups') + '</select></label>' +
+    '<label>Item<select id="flt-item">' + optList(allItems(), f.item, 'All items') + '</select></label>' +
+    '<label>Language<select id="flt-lang">' + optList(langs, f.lang, 'All languages') + '</select></label>' +
+    '<label>Mode<select id="flt-mode">' + optList(modes, f.mode, 'All modes') + '</select></label>' +
+    '<label class="check"><input type="checkbox" id="flt-stop"' + (S.ui.stopOn ? ' checked' : '') + '> Remove stopwords</label>' +
+    '<label class="check"><input type="checkbox" id="flt-forms"' + (S.ui.groupOn ? ' checked' : '') + '> Group word forms</label>' +
+    '<span class="shown">' + (shown === S.docs.length ? 'All ' + fmt(shown) + ' responses' : fmt(shown) + ' of ' + fmt(S.docs.length) + ' responses') + '</span>' +
+    ((f.group || f.item || f.lang || f.mode) ? '<button class="link" data-act="flt-clear">Clear filters</button>' : '') +
+    '<button class="primary mobile-only" data-act="flt-toggle">Show ' + fmt(shown) + ' responses</button>';
+  const nAct = ['group','item','lang','mode'].filter(k => f[k]).length, badge = $('#fltBadge');
+  if (badge) { badge.hidden = !nAct; badge.textContent = nAct; }
+}
+function head(title, text){ return '<div class="view-head"><h2>' + esc(title) + '</h2><p data-act="head-toggle" title="Tap to read more">' + text + '</p></div>'; }
+function emptyView(title, text){
+  if (!S.docs.length) return head(title, text) + '<div class="panel empty"><p>There are no responses yet. Add them under Responses, or load the sample data to see how this analysis works.</p><div class="actions"><button class="primary" data-view="data">Go to Responses</button></div></div>';
+  return head(title, text) + '<div class="panel empty"><p>No responses match the current filters.</p><div class="actions"><button data-act="flt-clear">Clear filters</button></div></div>';
+}
+function groupSelect(id, val){
+  return '<select id="' + id + '" data-groupsel>' + S.groups.map(g => '<option' + (g === val ? ' selected' : '') + '>' + esc(g) + '</option>').join('') + '<option value="__new">New group…</option></select>';
+}
+
+/* ================= views ================= */
+R.data = function(){
+  const sub = S.ui.sub, tabs = [['csv','Import spreadsheet'],['type','Type or paste'],['files','Import text files'],['sample','Sample data']];
+  return head('Responses', 'Bring in answers from a Google Sheets export, typed-up paper forms or interview transcripts. Each answer becomes one response that you can filter by group, item, language and mode.') +
+    '<div class="seg" role="tablist">' + tabs.map(t => '<button role="tab" data-sub="' + t[0] + '" aria-selected="' + (sub === t[0]) + '" class="' + (sub === t[0] ? 'on' : '') + '">' + t[1] + '</button>').join('') + '</div>' +
+    '<div class="panel">' + (sub === 'type' ? typePanel() : sub === 'files' ? filesPanel() : sub === 'sample' ? samplePanel() : csvPanel()) + '</div>' + responsesTable();
+};
+function firstVal(i){ for (const r of CSV.rows) { const v = (r[i] || '').trim(); if (v) return v.replace(/\s+/g, ' '); } return ''; }
+function csvCount(){ if (!CSV) return 0; let n = 0; for (const r of CSV.rows) for (const c of CSV.textCols) if ((r[c] || '').trim()) n++; return n; }
+function csvPanel(){
+  if (!CSV) return '<h3>Import a spreadsheet</h3><p class="hint">In Google Sheets choose File, then Download, then Comma-separated values (.csv). Each open-ended column becomes a separate item, so one form can give several responses per participant.</p><label class="filepick">Choose a CSV file<input type="file" id="csvFile" accept=".csv,.tsv,.txt"></label>';
+  const h = CSV.headers;
+  const opts = sel => '<option value="">None</option>' + h.map((x, i) => '<option value="' + i + '"' + (sel === i ? ' selected' : '') + '>' + esc(trunc(x || 'Column ' + (i + 1), 60)) + '</option>').join('');
+  return '<h3>' + esc(CSV.name) + '</h3><p class="hint">' + fmt(CSV.rows.length) + ' rows and ' + h.length + ' columns. Choose which columns hold the answers. <button class="link" data-act="csv-reset">Choose another file</button></p>' +
+    '<div class="grid2"><label>Participant ID column<select id="mapId">' + opts(CSV.idCol) + '</select></label>' +
+    '<label>Where the group comes from<select id="mapGMode"><option value="fixed"' + (CSV.gMode === 'fixed' ? ' selected' : '') + '>Same group for every row</option><option value="col"' + (CSV.gMode === 'col' ? ' selected' : '') + '>A column in the sheet</option></select></label>' +
+    (CSV.gMode === 'col' ? '<label>Group column<select id="mapGCol">' + opts(CSV.gCol) + '</select></label>' : '<label>Group for these rows' + groupSelect('mapGFixed', CSV.gFixed) + '</label>') +
+    '<label>Where the item comes from<select id="mapIMode"><option value="header"' + (CSV.iMode !== 'col' ? ' selected' : '') + '>The answer column heading</option><option value="col"' + (CSV.iMode === 'col' ? ' selected' : '') + '>A column in the sheet</option></select></label>' +
+    (CSV.iMode === 'col' ? '<label>Item column<select id="mapICol">' + opts(CSV.iCol) + '</select></label>' : '') +
+    '<label>Mode<select id="mapMode">' + MODES.map(m => '<option' + (CSV.mode === m ? ' selected' : '') + '>' + m + '</option>').join('') + '</select></label></div>' +
+    '<fieldset class="cols"><legend>Answer columns (columns with longer text are ticked for you)</legend>' +
+    h.map((x, i) => '<label class="colpick"><input type="checkbox" data-col="' + i + '"' + (CSV.textCols.indexOf(i) >= 0 ? ' checked' : '') + '><span class="cname">' + esc(trunc(x || 'Column ' + (i + 1), 48)) + '</span><span class="cprev">' + esc(trunc(firstVal(i), 90)) + '</span></label>').join('') +
+    '</fieldset><div class="actions"><button class="primary" data-act="csv-add"' + (csvCount() ? '' : ' disabled') + '>Add ' + fmt(csvCount()) + ' responses</button></div>';
+}
+function typePanel(){
+  const t = S.ui.typeDraft || {pid:'', group:S.groups[0] || '', item:'', lang:'', mode:'paper', split:false};
+  return '<h3>Type or paste responses</h3><p class="hint">For answers from paper forms. Malayalam typed with any keyboard is normalised, so old and new chillu forms count as the same word.</p>' +
+    '<div class="grid3"><label>Participant ID<input id="tPid" value="' + esc(t.pid) + '" placeholder="For example P07"></label>' +
+    '<label>Group' + groupSelect('tGroup', t.group) + '</label>' +
+    '<label>Item or question<input id="tItem" list="itemList" value="' + esc(t.item) + '" placeholder="For example Q12 Media and drinking"></label>' +
+    '<label>Language<select id="tLang"><option value="">Detect automatically</option>' + LANGS.slice(0, 4).map(l => '<option' + (t.lang === l ? ' selected' : '') + '>' + l + '</option>').join('') + '</select></label>' +
+    '<label>Mode<select id="tMode">' + MODES.map(m => '<option' + (t.mode === m ? ' selected' : '') + '>' + m + '</option>').join('') + '</select></label></div>' +
+    '<label class="block">Response text<textarea id="tText" rows="6" placeholder="Type the answer exactly as it was written"></textarea></label>' +
+    '<label class="check"><input type="checkbox" id="tSplit"' + (t.split ? ' checked' : '') + '> Split pasted text into separate responses at blank lines</label>' +
+    '<div class="actions"><button class="primary" data-act="type-add">Add response</button><span class="hint" style="margin:0">Ctrl + Enter adds it and keeps the ID, group and item ready for the next one.</span></div>' +
+    '<datalist id="itemList">' + allItems().map(i => '<option value="' + esc(i) + '">').join('') + '</datalist>';
+}
+function filesPanel(){
+  return '<h3>Import interview transcripts</h3><p class="hint">Plain-text (.txt) files, one per interview. Each file name becomes the participant ID. Save Word files as plain text with UTF-8 encoding first.</p>' +
+    '<div class="grid3"><label>Group' + groupSelect('fiGroup', S.groups[0]) + '</label><label>Item<input id="fiItem" value="Interview"></label>' +
+    '<label>Mode<select id="fiMode">' + MODES.map(m => '<option' + (m === 'transcript' ? ' selected' : '') + '>' + m + '</option>').join('') + '</select></label></div>' +
+    '<label class="filepick">Choose text files<input type="file" id="txtFiles" accept=".txt,.md" multiple></label>';
+}
+function samplePanel(){
+  const n = S.docs.filter(d => /^Sample \d+$/.test(d.pid)).length;
+  return '<h3>Sample data</h3><p class="hint">Twelve short, made-up answers in Malayalam, Manglish and English across the four participant groups. Use them to try each analysis before importing real data.</p>' +
+    '<div class="actions"><button class="primary" data-act="sample-load">Load sample responses</button>' + (n ? '<button class="danger" data-act="sample-remove">Remove ' + n + ' sample responses</button>' : '') + '</div>';
+}
+function responsesTable(){
+  if (!S.docs.length) return '<div class="panel empty"><p>No responses yet. Import a spreadsheet, type in paper forms, add transcripts or load the sample data.</p></div>';
+  const q = S.ui.dataQ.trim().toLowerCase();
+  const docs = q ? S.docs.filter(d => (d.pid + ' ' + d.group + ' ' + d.item + ' ' + d.text).toLowerCase().indexOf(q) >= 0) : S.docs;
+  const shown = docs.slice(0, S.ui.dataLimit);
+  return '<div class="panel"><div class="bar" style="align-items:center"><h3 style="margin:0">' + fmt(S.docs.length) + ' responses</h3><input type="search" id="dataQ" placeholder="Search IDs, groups, items or text" value="' + esc(S.ui.dataQ) + '" style="min-width:240px"><span class="spacer"></span>' +
+    '<div class="bulk"><button data-act="bulk-group">Set group for selected</button><button data-act="bulk-item">Set item for selected</button><button class="danger" data-act="bulk-del">Delete selected</button></div></div>' +
+    '<div class="tablewrap"><table class="t cards"><thead><tr><th><input type="checkbox" id="selAll" aria-label="Select all shown"></th><th>ID</th><th>Group</th><th>Item</th><th>Language</th><th>Mode</th><th class="num">Words</th><th>Text</th></tr></thead><tbody>' +
+    shown.map(d => '<tr><td class="c-sel"><input type="checkbox" class="sel" data-id="' + d.id + '" aria-label="Select ' + esc(d.pid) + '"></td><td class="c-id"><button class="link" data-open="' + d.id + '">' + esc(d.pid || 'Untitled') + '</button></td>' +
+      '<td class="c-group"><span class="dot" style="--c:' + colorOf(d.group) + '"></span>' + esc(d.group || 'Ungrouped') + '</td><td class="c-item">' + esc(d.item) + '</td><td class="c-lang">' + esc(langOf(d)) + (d.lang ? '' : ' <span class="muted">(auto)</span>') + '</td><td class="c-mode">' + esc(d.mode) + '</td>' +
+      '<td class="num c-words">' + fmt(wordCount(d)) + ' words</td><td class="c-meta"><span class="dot" style="--c:' + colorOf(d.group) + '"></span>' + esc([d.group || 'Ungrouped', d.item, langOf(d), d.mode].filter(Boolean).join(', ')) + '</td><td class="prev c-text">' + esc(trunc(d.text.replace(/\s+/g, ' '), 120)) + '</td></tr>').join('') +
+    '</tbody></table></div>' + (docs.length > shown.length ? '<div class="actions"><button data-act="data-more">Show all ' + fmt(docs.length) + '</button></div>' : '') + '</div>';
+}
+
+R.overview = function(){
+  const title = 'Overview', text = 'Size and vocabulary of the responses you are showing, broken down by group. Type-token ratio rises with vocabulary variety; the standardised version (per 100 words) is fairer across groups of different sizes.';
+  const docs = filtered(); if (!docs.length) return emptyView(title, text);
+  const gs = groupsIn(docs), rows = gs.map(g => groupStats(docs.filter(d => (d.group || 'Ungrouped') === g), g)), all = groupStats(docs, 'All shown');
+  const cnt = dim => { const m = {}; for (const d of docs) { const v = dimOf(d, dim); m[v] = (m[v] || 0) + 1; } return Object.keys(m).sort((a, b) => m[b] - m[a]).map(k => [k, m[k]]); };
+  const tr = r => '<tr><td>' + (r.label === 'All shown' ? '<strong>All shown</strong>' : '<span class="dot" style="--c:' + colorOf(r.label) + '"></span>' + esc(r.label)) + '</td><td class="num">' + fmt(r.docs) + '</td><td class="num">' + fmt(r.words) + '</td><td class="num">' + fmt(r.types) + '</td><td class="num">' + fmt(r.mean, 1) + '</td><td class="num">' + fmt(r.ttr, 3) + '</td><td class="num">' + (r.sttr === null ? '–' : fmt(r.sttr, 3)) + '</td></tr>';
+  const small = (title2, list) => '<div class="panel"><h3>' + title2 + '</h3><table class="t"><tbody>' + list.map(x => '<tr><td>' + esc(x[0]) + '</td><td class="num">' + fmt(x[1]) + '</td><td class="num muted">' + fmt(x[1] / docs.length * 100, 0) + '%</td></tr>').join('') + '</tbody></table></div>';
+  return head(title, text) +
+    '<div class="panel"><div class="bar" style="align-items:center"><h3 style="margin:0">By group</h3><span class="spacer"></span><button data-act="ov-export">Download CSV</button></div><div class="tablewrap"><table class="t"><thead><tr><th>Group</th><th class="num">Responses</th><th class="num">Words</th><th class="num">Unique words</th><th class="num">Words per response</th><th class="num">Type-token ratio</th><th class="num">STTR (100)</th></tr></thead><tbody>' + rows.map(tr).join('') + tr(all) + '</tbody></table></div>' +
+    hbar(rows.map(r => ({label:r.label, v:r.mean, c:colorOf(r.label)})), {label:'Words per response by group'}) + '<p class="hint">Bars show average words per response.</p></div>' +
+    '<div class="grid2">' + small('Languages', cnt('lang')) + small('Modes', cnt('mode')) + '</div>' + small('Items', cnt('item'));
+};
+
+R.freq = function(){
+  const title = 'Word frequency', text = 'How often each word or phrase appears in the responses you are showing. Click a word to read it in context.';
+  const docs = filtered(); if (!docs.length) return emptyView(title, text);
+  const o = S.ui.freq, n = +o.n || 1, tot = totals(docs), gs = groupsIn(docs), multi = gs.length > 1;
+  const q = normalizeText(o.q).toLowerCase().trim();
+  const rows = freqTable(docs, n).filter(r => r.f >= (+o.min || 1) && (!q || r.k.indexOf(q) >= 0));
+  const per = (f, N) => N ? f / N * 1000 : 0;
+  let body = '';
+  if (!rows.length) body = '<p class="hint">Nothing matches. Lower the minimum count or clear the filter text.</p>';
+  else if (o.show === 'chart') body = hbar(rows.slice(0, 25).map(r => ({label:r.k, v:r.f})), {fmt:v => fmt(v), label:'Top 25 by count'});
+  else if (o.show === 'cloud') {
+    const top = rows.slice(0, 90), mx = top[0].f;
+    body = '<div class="cloud">' + top.slice().sort((a, b) => a.k.localeCompare(b.k)).map((r, i) => '<button data-kwic="' + esc(r.k) + '" style="font-size:' + (13 + 30 * Math.sqrt(r.f / mx)).toFixed(0) + 'px;color:' + (i % 3 === 0 ? 'var(--green)' : 'var(--ink)') + '" title="' + esc(r.k + ': ' + r.f) + '">' + esc(r.k) + '</button>').join('') + '</div>';
+  } else {
+    const shown = rows.slice(0, o.top);
+    body = (n === 1 ? '<div class="bar" style="align-items:center"><span class="hint" style="margin:0">With selected words:</span><button data-act="fr-merge">Group as one word</button><button data-act="fr-lex">Add to a word list</button><button data-act="fr-cooc">Compare in co-occurrence</button></div>' : '') +
+      '<div class="tablewrap"><table class="t"><thead><tr>' + (n === 1 ? '<th></th>' : '') + '<th class="num">Rank</th><th>' + (n === 1 ? 'Word' : 'Phrase') + '</th><th class="num">Count</th><th class="num">Per 1,000 words</th><th class="num">Responses</th>' +
+      (multi ? gs.map(g => '<th class="num" title="' + esc(g) + ' per 1,000 words"><span class="dot" style="--c:' + colorOf(g) + '"></span>' + esc(trunc(g, 16)) + '</th>').join('') : '') + '</tr></thead><tbody>' +
+      shown.map((r, i) => '<tr>' + (n === 1 ? '<td><input type="checkbox" class="frsel" value="' + esc(r.k) + '" aria-label="Select ' + esc(r.k) + '"></td>' : '') + '<td class="num muted">' + (i + 1) + '</td><td class="w"><button class="link" data-kwic="' + esc(r.k) + '">' + esc(r.k) + '</button>' + (n === 1 && S.ui.groupOn && hasForms(r.k) ? ' <span class="muted" title="' + esc(formsOf(r.k).join(', ')) + '">+' + formsOf(r.k).length + ' forms</span>' : '') + '</td>' +
+        '<td class="num">' + fmt(r.f) + '</td><td class="num">' + fmt(per(r.f, tot.N), 2) + '</td><td class="num">' + fmt(r.df) + '</td>' +
+        (multi ? gs.map(g => '<td class="num">' + fmt(per((r.by && r.by[g]) || 0, tot.g[g]), 2) + '</td>').join('') : '') + '</tr>').join('') +
+      '</tbody></table></div>' + (rows.length > shown.length ? '<div class="actions"><button data-act="fr-more">Show 500 more</button><span class="hint" style="margin:0">Showing ' + fmt(shown.length) + ' of ' + fmt(rows.length) + '. The CSV includes all of them.</span></div>' : '');
+  }
+  return head(title, text) + '<div class="panel"><div class="bar">' +
+    '<label>Unit<select id="frN">' + [[1,'Single words'],[2,'Two-word phrases'],[3,'Three-word phrases'],[4,'Four-word phrases']].map(x => '<option value="' + x[0] + '"' + (n === x[0] ? ' selected' : '') + '>' + x[1] + '</option>').join('') + '</select></label>' +
+    '<label>Minimum count<input type="number" id="frMin" min="1" value="' + (+o.min || 1) + '" style="width:96px"></label>' +
+    '<label>Contains<input type="search" id="frQ" value="' + esc(o.q) + '" placeholder="Filter the list"></label>' +
+    '<label>Show<select id="frShow"><option value="table"' + (o.show === 'table' ? ' selected' : '') + '>Table</option><option value="chart"' + (o.show === 'chart' ? ' selected' : '') + '>Top 25 chart</option><option value="cloud"' + (o.show === 'cloud' ? ' selected' : '') + '>Word cloud</option></select></label>' +
+    '<span class="spacer"></span><button data-act="fr-export">Download CSV</button></div>' +
+    '<p class="hint">' + fmt(rows.length) + ' different ' + (n === 1 ? 'words' : 'phrases') + ' in ' + fmt(tot.N) + ' words from ' + fmt(docs.length) + ' responses.' + (S.ui.stopOn ? ' Stopwords are removed.' : '') + (S.ui.groupOn && Object.keys(S.lemmaMap).length ? ' Grouped word forms are counted together.' : '') + (multi && o.show === 'table' ? ' Group columns show uses per 1,000 words in that group.' : '') + '</p>' +
+    body + '</div>';
+};
+function formsOf(head){ return Object.keys(S.lemmaMap).filter(k => S.lemmaMap[k] === head); }
+function hasForms(head){ for (const k in S.lemmaMap) if (S.lemmaMap[k] === head) return true; return false; }
+
+R.kwic = function(){
+  const title = 'Concordance', text = 'Every occurrence of a word or phrase with the words around it. Use * for any ending (കുടി* or addict*), ? for one letter, and | between alternatives (illness | disease | രോഗം). Click a line to read the full response.';
+  const docs = filtered(); if (!docs.length) return emptyView(title, text);
+  const o = S.ui.kwic;
+  let lines = [], err = '';
+  if (o.q.trim()) { try { lines = kwic(docs, o); } catch (e) { err = e.message; } }
+  const cmp = (a, b) => a.localeCompare(b, 'ml');
+  if (o.sort === 'L1') lines.sort((a, b) => cmp(a.L1, b.L1)); else if (o.sort === 'R1') lines.sort((a, b) => cmp(a.R1, b.R1)); else if (o.sort === 'node') lines.sort((a, b) => cmp(a.N, b.N)); else if (o.sort === 'group') lines.sort((a, b) => cmp(a.d.group || '', b.d.group || ''));
+  const gs = groupsIn(docs), tot = totals(docs), byG = {}, dset = new Set();
+  for (const l of lines) { const g = l.d.group || 'Ungrouped'; byG[g] = (byG[g] || 0) + 1; dset.add(l.d.id); }
+  const controls = '<div class="panel"><div class="bar">' +
+    '<label style="flex:1 1 280px">Search for<input id="kwQ" data-enter="kwic-run" value="' + esc(o.q) + '" placeholder="Word, phrase or pattern"></label>' +
+    '<label>Words each side<select id="kwSpan">' + [3,5,7,10,15,20].map(v => '<option' + (+o.span === v ? ' selected' : '') + '>' + v + '</option>').join('') + '</select></label>' +
+    '<label>Sort by<select id="kwSort">' + [['doc','Response order'],['group','Group'],['L1','Word to the left'],['R1','Word to the right'],['node','Matched form']].map(x => '<option value="' + x[0] + '"' + (o.sort === x[0] ? ' selected' : '') + '>' + x[1] + '</option>').join('') + '</select></label>' +
+    '<button class="primary" data-act="kwic-run">Search</button></div>' +
+    '<div class="bar"><label style="flex:1 1 220px">Only lines with this word nearby (optional)<input id="kwNear" data-enter="kwic-run" value="' + esc(o.near) + '" placeholder="For example shame | നാണക്കേട്*"></label>' +
+    '<label>Within<select id="kwNearSpan">' + [2,3,5,8,10].map(v => '<option' + (+o.nearSpan === v ? ' selected' : '') + '>' + v + '</option>').join('') + '</select></label>' +
+    '<label class="check" style="margin-bottom:6px"><input type="checkbox" id="kwRegex"' + (o.regex ? ' checked' : '') + '> Regular expression</label></div>' +
+    (S.ui.groupOn ? '<p class="hint">Grouped word forms are included, so searching a headword also finds its other forms.</p>' : '') + '</div>';
+  if (!o.q.trim()) return head(title, text) + controls;
+  if (err) return head(title, text) + controls + '<div class="panel"><p class="hint">' + esc(err) + '</p></div>';
+  const lim = o.limit || 300;
+  const summary = '<div class="bar" style="align-items:center"><h3 style="margin:0">' + fmt(lines.length) + ' hits in ' + fmt(dset.size) + ' of ' + fmt(docs.length) + ' responses</h3><span class="spacer"></span><button data-act="kwic-export"' + (lines.length ? '' : ' disabled') + '>Download CSV</button></div>' +
+    (lines.length && gs.length > 1 ? '<p class="hint">' + gs.map(g => '<span class="dot" style="--c:' + colorOf(g) + '"></span>' + esc(g) + ': ' + fmt(byG[g] || 0) + ' (' + fmt(tot.g[g] ? (byG[g] || 0) / tot.g[g] * 1000 : 0, 2) + ' per 1,000 words)').join('&nbsp;&nbsp; ') + '</p>' : '');
+  const list = lines.length ? '<div class="kwic">' + lines.slice(0, lim).map((l, idx) => '<div class="kl" data-open="' + l.d.id + '" data-hl="' + esc(o.q) + '" data-near="' + esc(o.near) + '" tabindex="0" title="Open response"><span class="meta"><span class="dot" style="--c:' + colorOf(l.d.group) + '"></span>' + esc(l.d.pid || '–') + '</span><span class="l"><span>' + esc(l.left) + '</span></span><span class="node">' + esc(l.node) + '</span><span class="r">' + esc(l.right) + '</span></div>').join('') + '</div>' +
+    (lines.length > lim ? '<div class="actions"><button data-act="kwic-more">Show 500 more</button><span class="hint" style="margin:0">Showing ' + fmt(lim) + ' of ' + fmt(lines.length) + '.</span></div>' : '') : '<p class="hint">No matches. Check the spelling, try a wildcard such as കുടി*, or turn on Group word forms.</p>';
+  return head(title, text) + controls + '<div class="panel">' + summary + list + '</div>';
+};
+
+R.colloc = function(){
+  const title = 'Collocates', text = 'Words that keep company with a search word inside a window of words on each side. Strong collocates show how people frame a topic, for example which words sit next to കുടിയൻ or addict.';
+  const docs = filtered(); if (!docs.length) return emptyView(title, text);
+  const o = S.ui.colloc;
+  const controls = '<div class="panel"><div class="bar">' +
+    '<label style="flex:1 1 240px">Search word<input id="coQ" data-enter="colloc-run" value="' + esc(o.q) + '" placeholder="For example കുടിയൻ | drunk*"></label>' +
+    '<label>Words to the left<select id="coL">' + [0,1,2,3,4,5,8,10].map(v => '<option' + (+o.L === v ? ' selected' : '') + '>' + v + '</option>').join('') + '</select></label>' +
+    '<label>Words to the right<select id="coR">' + [0,1,2,3,4,5,8,10].map(v => '<option' + (+o.R === v ? ' selected' : '') + '>' + v + '</option>').join('') + '</select></label>' +
+    '<label>Minimum together<input type="number" id="coMin" min="1" value="' + (+o.min || 1) + '" style="width:90px"></label>' +
+    '<label>Rank by<select id="coStat">' + [['ld','logDice'],['mi','Mutual information'],['t','T-score'],['ll','Log-likelihood'],['o','Times together']].map(x => '<option value="' + x[0] + '"' + (o.stat === x[0] ? ' selected' : '') + '>' + x[1] + '</option>').join('') + '</select></label>' +
+    '<button class="primary" data-act="colloc-run">Find collocates</button></div>' +
+    '<details><summary>Which statistic should I use?</summary><p class="hint">logDice is stable across corpus sizes and a good default. Mutual information favours rare, exclusive pairs, so read it with a minimum of 3 or more. T-score favours frequent, reliable pairs. Log-likelihood tests whether the pairing is beyond chance: 3.84 is p &lt; .05 and 10.83 is p &lt; .001. With small samples, treat every statistic as a pointer to read the lines, not as proof.</p></details></div>';
+  if (!o.q.trim()) return head(title, text) + controls;
+  let res; try { res = collocates(docs, o); } catch (e) { return head(title, text) + controls + '<div class="panel"><p class="hint">' + esc(e.message) + '</p></div>'; }
+  const st = o.stat, rows = res.rows.sort((a, b) => b[st] - a[st] || b.o - a.o).slice(0, 300);
+  return head(title, text) + controls + '<div class="panel"><div class="bar" style="align-items:center"><h3 style="margin:0">' + fmt(res.nodeF) + ' occurrences of the search word, ' + fmt(res.rows.length) + ' collocates</h3><span class="spacer"></span><button data-act="colloc-export"' + (res.rows.length ? '' : ' disabled') + '>Download CSV</button></div>' +
+    (rows.length ? '<div class="tablewrap"><table class="t"><thead><tr><th>Collocate</th><th class="num">Together</th><th class="num">Left</th><th class="num">Right</th><th class="num">Total count</th><th class="num">logDice</th><th class="num">MI</th><th class="num">T-score</th><th class="num">Log-likelihood</th></tr></thead><tbody>' +
+      rows.map(r => '<tr><td class="w"><button class="link" data-kwic="' + esc(o.q) + '" data-near="' + esc(r.k) + '">' + esc(r.k) + '</button></td><td class="num">' + fmt(r.o) + '</td><td class="num">' + fmt(r.l) + '</td><td class="num">' + fmt(r.r) + '</td><td class="num">' + fmt(r.fc) + '</td><td class="num">' + fmt(r.ld, 2) + '</td><td class="num">' + fmt(r.mi, 2) + '</td><td class="num">' + fmt(r.t, 2) + '</td><td class="num">' + fmt(r.ll, 2) + ' <span class="sig">' + stars(r.ll) + '</span></td></tr>').join('') +
+      '</tbody></table></div><p class="hint">Click a collocate to see the lines where both words appear together.</p>' : '<p class="hint">No collocates reach the minimum. Lower it, widen the window or turn off stopword removal.</p>') + '</div>';
+};
+
+R.key = function(){
+  const title = 'Keyness', text = 'Words one part of the data uses far more (or less) than another, tested with log-likelihood. Use it to compare how each group talks: for example disease words in healthcare providers against moral words in families.';
+  const o = S.ui.key, base = filtered(o.dim);
+  if (!base.length) return emptyView(title, text);
+  const vals = valuesOf(o.dim, base);
+  if (vals.indexOf(o.target) < 0) o.target = vals[0] || '';
+  if (o.ref && (vals.indexOf(o.ref) < 0 || o.ref === o.target)) o.ref = '';
+  const controls = '<div class="panel"><div class="bar">' +
+    '<label>Compare by<select id="kyDim">' + Object.keys(DIM_LABEL).map(k => '<option value="' + k + '"' + (o.dim === k ? ' selected' : '') + '>' + DIM_LABEL[k] + '</option>').join('') + '</select></label>' +
+    '<label>Target<select id="kyT">' + vals.map(v => '<option' + (v === o.target ? ' selected' : '') + '>' + esc(v) + '</option>').join('') + '</select></label>' +
+    '<label>Against<select id="kyRef"><option value="">Everything else</option>' + vals.filter(v => v !== o.target).map(v => '<option' + (v === o.ref ? ' selected' : '') + '>' + esc(v) + '</option>').join('') + '</select></label>' +
+    '<label>Minimum count<input type="number" id="kyMin" min="1" value="' + (+o.min || 1) + '" style="width:90px"></label>' +
+    '<label>Significance<select id="kyP">' + [[3.84,'p < .05'],[6.63,'p < .01'],[10.83,'p < .001'],[15.13,'p < .0001'],[0,'Show all']].map(x => '<option value="' + x[0] + '"' + (+o.p === x[0] ? ' selected' : '') + '>' + x[1] + '</option>').join('') + '</select></label>' +
+    '<label>Show<select id="kyShow"><option value="over"' + (o.show === 'over' ? ' selected' : '') + '>Used more by target</option><option value="under"' + (o.show === 'under' ? ' selected' : '') + '>Used less by target</option></select></label>' +
+    '<span class="spacer"></span><button data-act="key-export">Download CSV</button></div>' +
+    '<p class="hint">The ' + DIM_LABEL[o.dim].toLowerCase() + ' filter at the top is ignored here; the other filters still apply.</p></div>';
+  if (vals.length < 2) return head(title, text) + controls + '<div class="panel empty"><p>Keyness needs at least two values of ' + DIM_LABEL[o.dim].toLowerCase() + ' in the responses you are showing.</p></div>';
+  const tDocs = base.filter(d => dimOf(d, o.dim) === o.target), rDocs = base.filter(d => dimOf(d, o.dim) !== o.target && (!o.ref || dimOf(d, o.dim) === o.ref));
+  const res = keyness(tDocs, rDocs);
+  const min = +o.min || 1, p = +o.p || 0;
+  const rows = res.rows.filter(r => o.show === 'over' ? (r.over && r.a >= min) : (!r.over && r.b >= min)).filter(r => r.ll >= p).sort((a, b) => b.ll - a.ll);
+  const refLabel = o.ref || 'everything else';
+  return head(title, text) + controls + '<div class="panel"><h3>' + esc(o.target) + ' (' + fmt(res.c) + ' words) against ' + esc(refLabel) + ' (' + fmt(res.d) + ' words)</h3>' +
+    (rows.length ? diverging(rows.slice(0, 25).map(r => ({label:r.k, v:r.lr}))) + '<p class="hint">Bars show log ratio: +1 means twice as frequent in the target, −1 half as frequent. Stars mark log-likelihood significance.</p>' +
+      '<div class="tablewrap"><table class="t"><thead><tr><th>Word</th><th class="num">Target count</th><th class="num">Target per 1,000</th><th class="num">Reference count</th><th class="num">Reference per 1,000</th><th class="num">Log ratio</th><th class="num">Log-likelihood</th></tr></thead><tbody>' +
+      rows.slice(0, 500).map(r => '<tr><td class="w"><button class="link" data-kwic="' + esc(r.k) + '">' + esc(r.k) + '</button></td><td class="num">' + fmt(r.a) + '</td><td class="num">' + fmt(r.pa, 2) + '</td><td class="num">' + fmt(r.b) + '</td><td class="num">' + fmt(r.pb, 2) + '</td><td class="num">' + fmt(r.lr, 2) + '</td><td class="num">' + fmt(r.ll, 2) + ' <span class="sig">' + stars(r.ll) + '</span></td></tr>').join('') + '</tbody></table></div>'
+      : '<p class="hint">No words pass these settings. Lower the minimum count or relax the significance level; small samples rarely reach p &lt; .05.</p>') + '</div>';
+};
+
+R.lex = function(){
+  const title = 'Word lists', text = 'Your own categories of words, such as stigma labels, disease terms or recovery language, counted across groups. Each line is one term; * matches any ending and multi-word phrases work too.';
+  const o = S.ui.lex, L = S.lexicons;
+  if (o.sel >= L.length) o.sel = Math.max(0, L.length - 1);
+  const cur = L[o.sel];
+  const side = '<div class="lexlist">' + (L.length ? L.map((x, i) => '<button class="' + (i === o.sel ? 'on' : '') + '" data-act="lex-sel" data-i="' + i + '"><span class="swatch" style="--c:' + esc(x.color) + '"></span>' + esc(x.name) + '<span class="n">' + lexTerms(x).length + '</span></button>').join('') : '<p class="hint">No word lists yet.</p>') +
+    '<div class="actions"><button data-act="lex-new">New list</button><button data-act="lex-starter">Add starter lists</button></div>' +
+    '<div class="actions"><button data-act="lex-export"' + (L.length ? '' : ' disabled') + '>Export lists</button><label class="filepick" style="padding:6px 10px">Import lists<input type="file" id="lexFile" accept=".json"></label></div></div>';
+  const editor = cur ? '<div class="panel"><div class="grid2"><label>Name<input id="lxName" value="' + esc(cur.name) + '"></label><label>Colour<input type="color" id="lxColor" value="' + esc(cur.color) + '" style="height:36px;padding:2px"></label></div>' +
+    '<label class="block">Terms, one per line<textarea id="lxTerms" rows="9">' + esc(cur.terms) + '</textarea></label>' +
+    '<div class="actions"><button class="primary" data-act="lex-save">Save list</button><button class="danger" data-act="lex-del">Delete list</button></div>' +
+    '<p class="hint">Starter lists are a first draft. Review every term before using the counts in your analysis; check concordance lines for words with more than one meaning.</p></div>' : '';
+  const docs = filtered();
+  let results = '';
+  if (!L.length) results = '<div class="panel empty"><p>Create a list or add the starter lists to begin.</p></div>';
+  else if (!docs.length) results = '<div class="panel empty"><p>' + (S.docs.length ? 'No responses match the current filters.' : 'Add responses to see counts.') + '</p></div>';
+  else {
+    const gs = groupsIn(docs), counts = L.map(x => lexCount(docs, x)), m = o.measure;
+    const mLabel = m === 'pct' ? '% of responses' : m === 'raw' ? 'hits' : 'per 1,000 words';
+    const df = m === 'raw' ? (v => fmt(v)) : (v => fmt(v, m === 'pct' ? 0 : 2));
+    const all = c => ({hits:c.total, docsWith:c.docsWith, docs:c.docs, words:c.words});
+    const table = '<div class="tablewrap"><table class="t"><thead><tr><th>List</th>' + gs.map(g => '<th class="num"><span class="dot" style="--c:' + colorOf(g) + '"></span>' + esc(trunc(g, 18)) + '</th>').join('') + '<th class="num">All shown</th></tr></thead><tbody>' +
+      L.map((x, i) => '<tr><td><button class="link" data-act="lex-sel" data-i="' + i + '"><span class="swatch" style="--c:' + esc(x.color) + ';display:inline-block;margin-right:6px"></span>' + esc(x.name) + '</button></td>' + gs.map(g => '<td class="num" title="' + fmt((counts[i].byG[g] || {}).hits || 0) + ' hits in ' + fmt((counts[i].byG[g] || {}).docsWith || 0) + ' responses">' + df(lexMeasure(counts[i].byG[g], m)) + '</td>').join('') + '<td class="num"><strong>' + df(lexMeasure(all(counts[i]), m)) + '</strong></td></tr>').join('') + '</tbody></table></div>';
+    const chart = gs.length > 1 ? grouped(L.map((x, i) => ({label:x.name, i})), gs.map(g => ({label:g, c:colorOf(g)})), (c, s) => lexMeasure(counts[c.i].byG[s.label], m), {fmt:df}) : hbar(L.map((x, i) => ({label:x.name, v:lexMeasure(all(counts[i]), m), c:x.color})), {fmt:df});
+    let detail = '';
+    if (cur) {
+      const c = counts[o.sel], terms = Array.from(c.terms.entries()).sort((a, b) => b[1].n - a[1].n);
+      const unused = lexTerms(cur).filter(x => !c.terms.has(x.t)).map(x => x.t);
+      detail = '<div class="panel"><div class="bar" style="align-items:center"><h3 style="margin:0">' + esc(cur.name) + ': terms found</h3><span class="spacer"></span><button data-act="lex-kwic"' + (terms.length ? '' : ' disabled') + '>See all in concordance</button><button data-act="lex-export-terms">Download CSV</button></div>' +
+        (terms.length ? '<div class="tablewrap"><table class="t"><thead><tr><th>Term</th><th class="num">Hits</th>' + gs.map(g => '<th class="num">' + esc(trunc(g, 18)) + '</th>').join('') + '</tr></thead><tbody>' + terms.map(([t, v]) => '<tr><td class="w"><button class="link" data-kwic="' + esc(t) + '">' + esc(t) + '</button></td><td class="num">' + fmt(v.n) + '</td>' + gs.map(g => '<td class="num">' + fmt(v.byG[g] || 0) + '</td>').join('') + '</tr>').join('') + '</tbody></table></div>' : '<p class="hint">None of these terms appear in the responses you are showing.</p>') +
+        (unused.length ? '<p class="hint">Not found: ' + esc(unused.join(', ')) + '</p>' : '') + '</div>';
+    }
+    results = '<div class="panel"><div class="bar" style="align-items:center"><h3 style="margin:0">Counts by group</h3><span class="spacer"></span><label>Measure<select id="lxMeasure"><option value="per1k"' + (m === 'per1k' ? ' selected' : '') + '>Per 1,000 words</option><option value="pct"' + (m === 'pct' ? ' selected' : '') + '>% of responses using the list</option><option value="raw"' + (m === 'raw' ? ' selected' : '') + '>Raw hits</option></select></label><button data-act="lex-export-matrix">Download CSV</button></div>' + table + chart + '<p class="hint">Showing ' + mLabel + '. Hover a cell for raw hits.</p></div>' + detail;
+  }
+  return head(title, text) + '<div class="lexgrid"><div>' + side + '</div><div>' + editor + results + '</div></div>';
+};
+
+R.disp = function(){
+  const title = 'Dispersion', text = 'Where a word turns up across responses, and whether it is spread evenly or concentrated in a few people. DP (deviation of proportions) runs from 0 for perfectly even spread towards 1 for a word confined to one response.';
+  const docs = filtered(); if (!docs.length) return emptyView(title, text);
+  const o = S.ui.disp;
+  const controls = '<div class="panel"><div class="bar"><label style="flex:1 1 280px">Search for<input id="dsQ" data-enter="disp-run" value="' + esc(o.q) + '" placeholder="Word, phrase or pattern"></label><button class="primary" data-act="disp-run">Plot</button></div></div>';
+  if (!o.q.trim()) return head(title, text) + controls;
+  let res; try { res = dispersion(docs, o.q); } catch (e) { return head(title, text) + controls + '<div class="panel"><p class="hint">' + esc(e.message) + '</p></div>'; }
+  const gs = groupsIn(docs);
+  const rows = res.rows.slice().sort((a, b) => (gs.indexOf(a.d.group || 'Ungrouped') - gs.indexOf(b.d.group || 'Ungrouped')) || String(a.d.pid).localeCompare(String(b.d.pid), undefined, {numeric:true}));
+  const show = rows.slice(0, 400), w = chartW(), lw = w < 480 ? 104 : 170, pw = w - lw - 40, rh = isPhone() ? 22 : 16, h = show.length * rh + 8, tl = lw < 150 ? 14 : 26;
+  let svg = '<svg class="chart" viewBox="0 0 ' + w + ' ' + h + '" role="img" aria-label="Dispersion plot">';
+  show.forEach((r, i) => {
+    const y = 4 + i * rh + rh / 2;
+    svg += '<g data-open="' + r.d.id + '" data-hl="' + esc(o.q) + '" style="cursor:pointer"><rect x="0" y="' + (y - rh / 2) + '" width="' + w + '" height="' + rh + '" fill="transparent"/><text x="' + (lw - 8) + '" y="' + y + '" class="lbl" text-anchor="end" dominant-baseline="middle">' + esc(trunc((r.d.pid || '–') + (lw < 150 ? '' : ', ' + (r.d.group || 'Ungrouped')), tl)) + '</text>' +
+      '<line class="axis" x1="' + lw + '" x2="' + (lw + pw) + '" y1="' + y + '" y2="' + y + '"/>' +
+      r.pos.map(p => '<line x1="' + (lw + p * pw).toFixed(1) + '" x2="' + (lw + p * pw).toFixed(1) + '" y1="' + (y - 5) + '" y2="' + (y + 5) + '" stroke="' + colorOf(r.d.group) + '" stroke-width="2"/>').join('') +
+      '<text x="' + (lw + pw + 10) + '" y="' + y + '" class="val" dominant-baseline="middle">' + (r.h || '') + '</text></g>';
+  });
+  svg += '</svg>';
+  const tot = totals(docs);
+  const pg = gs.map(g => { const rs = res.rows.filter(r => (r.d.group || 'Ungrouped') === g), hits = rs.reduce((s, r) => s + r.h, 0); return {g, hits, per:tot.g[g] ? hits / tot.g[g] * 1000 : 0, range:rs.filter(r => r.h).length, n:rs.length}; });
+  return head(title, text) + controls +
+    '<div class="panel"><h3>' + fmt(res.total) + ' hits in ' + fmt(res.range) + ' of ' + fmt(res.rows.length) + ' responses. DP ' + fmt(res.dp, 3) + ', normalised DP ' + fmt(res.dpn, 3) + '</h3>' +
+    '<div class="tablewrap" style="max-height:none"><table class="t"><thead><tr><th>Group</th><th class="num">Hits</th><th class="num">Per 1,000 words</th><th class="num">Responses using it</th></tr></thead><tbody>' + pg.map(x => '<tr><td><span class="dot" style="--c:' + colorOf(x.g) + '"></span>' + esc(x.g) + '</td><td class="num">' + fmt(x.hits) + '</td><td class="num">' + fmt(x.per, 2) + '</td><td class="num">' + fmt(x.range) + ' of ' + fmt(x.n) + '</td></tr>').join('') + '</tbody></table></div></div>' +
+    '<div class="panel"><h3>Position within each response</h3><p class="hint">Each row is one response, from its first word on the left to its last on the right. Click a row to read it.' + (rows.length > show.length ? ' Showing the first 400 rows.' : '') + '</p>' + svg + '</div>';
+};
+
+R.cooc = function(){
+  const title = 'Co-occurrence', text = 'How often your chosen words appear together in the same response, the same sentence or within a few words. Useful for seeing which ideas travel together, such as shame with family or treatment with hope.';
+  const docs = filtered(); if (!docs.length) return emptyView(title, text);
+  const o = S.ui.cooc;
+  const controls = '<div class="panel"><div class="grid2"><label>Words or patterns, one per line (up to 20)<textarea id="ccTerms" rows="7" placeholder="shame*\nfamily | കുടുംബ*\ntreatment | ചികിത്സ*">' + esc(o.terms) + '</textarea></label>' +
+    '<div><label>Count pairs that appear in<select id="ccUnit">' + [['doc','The same response'],['sent','The same sentence'],['5','Within 5 words'],['10','Within 10 words']].map(x => '<option value="' + x[0] + '"' + (o.unit === x[0] ? ' selected' : '') + '>' + x[1] + '</option>').join('') + '</select></label>' +
+    '<label style="margin-top:10px">Measure<select id="ccMeasure"><option value="count"' + (o.measure === 'count' ? ' selected' : '') + '>Count</option><option value="jac"' + (o.measure === 'jac' ? ' selected' : '') + '>Jaccard (overlap from 0 to 1)</option></select></label>' +
+    '<div class="actions"><button class="primary" data-act="cooc-run">Build matrix</button><button data-act="cooc-top">Use top 10 words</button></div></div></div></div>';
+  const terms = o.terms.split(/\n+/).map(s => s.trim()).filter(Boolean).slice(0, 20);
+  if (terms.length < 2) return head(title, text) + controls + '<div class="panel empty"><p>Enter at least two words or patterns.</p></div>';
+  let res; try { res = cooc(docs, terms, o.unit); } catch (e) { return head(title, text) + controls + '<div class="panel"><p class="hint">' + esc(e.message) + '</p></div>'; }
+  const M = res.M, k = terms.length, windowed = !(o.unit === 'doc' || o.unit === 'sent');
+  const jac = (a, b) => { const u = M[a][a] + M[b][b] - M[a][b]; return u > 0 ? M[a][b] / u : 0; };
+  const useJ = o.measure === 'jac' && !windowed;
+  let max = 0; for (let a = 0; a < k; a++) for (let b = 0; b < k; b++) if (a !== b) max = Math.max(max, useJ ? jac(a, b) : M[a][b]);
+  const cell = (a, b) => {
+    if (a === b) return '<td class="cell diag" title="Total for this word">' + fmt(M[a][a]) + '</td>';
+    const v = useJ ? jac(a, b) : M[a][b], al = max ? v / max : 0;
+    return '<td class="cell" style="background:rgba(31,111,97,' + (al * 0.75).toFixed(2) + ');color:' + (al > 0.55 ? '#fff' : 'inherit') + '">' + (useJ ? fmt(v, 2) : fmt(v)) + '</td>';
+  };
+  const unitLabel = {doc:'responses', sent:'sentences'}[o.unit] || 'occurrences';
+  return head(title, text) + controls + '<div class="panel"><div class="bar" style="align-items:center"><h3 style="margin:0">' + (windowed ? 'Occurrences of the row word with the column word within ' + o.unit + ' words' : 'Number of ' + unitLabel + ' containing both words (out of ' + fmt(res.units) + ')') + '</h3><span class="spacer"></span><button data-act="cooc-export">Download CSV</button></div>' +
+    '<div class="tablewrap" style="max-height:none"><table class="t heat"><thead><tr><th></th>' + terms.map(t => '<th class="num">' + esc(trunc(t, 16)) + '</th>').join('') + '</tr></thead><tbody>' +
+    terms.map((t, a) => '<tr><th style="position:static;text-align:left">' + esc(trunc(t, 24)) + '</th>' + terms.map((u, b) => cell(a, b)).join('') + '</tr>').join('') + '</tbody></table></div>' +
+    '<p class="hint">The grey diagonal shows how many ' + unitLabel + ' contain each word on its own.' + (windowed && o.measure === 'jac' ? ' Jaccard is available for responses and sentences only.' : '') + '</p></div>';
+};
+
+R.forms = function(){
+  const title = 'Word forms & stopwords', text = 'Malayalam attaches endings to words, so കുടിയൻ, കുടിയന്റെ and കുടിയനെ count as three words unless you group them. Group the forms you consider the same word, and decide which common words to leave out of counts.';
+  const o = S.ui.forms;
+  const inv = {}; for (const k in S.lemmaMap) (inv[S.lemmaMap[k]] = inv[S.lemmaMap[k]] || []).push(k);
+  const q = normalizeText(o.q).toLowerCase().trim();
+  const heads = Object.keys(inv).filter(h => !q || h.indexOf(q) >= 0 || inv[h].some(f => f.indexOf(q) >= 0)).sort((a, b) => a.localeCompare(b, 'ml'));
+  const sugg = SUGG === null ? '<p class="hint">Suggestions look for words that share a stem once common endings are removed (Malayalam case endings, Manglish endings such as -nte and -il, English -s, -ed and -ing). Every suggestion needs your check: endings can mislead.</p><div class="actions"><button class="primary" data-act="sg-find"' + (S.docs.length ? '' : ' disabled') + '>Find likely groupings</button></div>'
+    : (SUGG.length ? '<div class="bar" style="align-items:center"><span class="hint" style="margin:0">' + fmt(SUGG.length) + ' possible groupings, most frequent first. Untick any form that does not belong, pick the headword, then group.</span><span class="spacer"></span><button data-act="sg-all">Group all shown</button><button data-act="sg-close">Close suggestions</button></div>' +
+      SUGG.slice(0, 150).map((g, i) => '<div class="sg"><label style="flex-direction:row;align-items:center;gap:6px;color:var(--ink)">Headword<select data-sghead="' + i + '">' + g.forms.map(f => '<option' + (f.w === g.head ? ' selected' : '') + '>' + esc(f.w) + '</option>').join('') + '</select></label><input data-sgcustom="' + i + '" placeholder="or type one, e.g. രോഗം" aria-label="Type a different headword" style="width:170px"><div class="forms">' +
+        g.forms.map(f => '<label><input type="checkbox" data-sgform="' + i + '" value="' + esc(f.w) + '" checked> ' + esc(f.w) + ' <span class="muted">' + f.f + '</span></label>').join('') + '</div><button data-act="sg-merge" data-i="' + i + '">Group</button><button data-act="sg-skip" data-i="' + i + '">Skip</button></div>').join('')
+      : '<p class="hint">No more groupings to suggest.</p><div class="actions"><button data-act="sg-close">Close suggestions</button></div>');
+  return head(title, text) +
+    '<div class="panel"><h3>Suggested groupings</h3>' + sugg + '</div>' +
+    '<div class="panel"><div class="bar" style="align-items:center"><h3 style="margin:0">Your grouped words (' + fmt(Object.keys(inv).length) + ')</h3><input type="search" id="fmQ" value="' + esc(o.q) + '" placeholder="Find a word"><span class="spacer"></span><button data-act="fm-export"' + (heads.length ? '' : ' disabled') + '>Download CSV</button></div>' +
+    '<div class="bar"><label style="flex:1 1 260px">Forms, separated by spaces or commas<input id="fmForms" placeholder="കുടിയന്റെ കുടിയനെ"></label><label>Headword<input id="fmHead" placeholder="കുടിയൻ"></label><button data-act="fm-add">Group them</button></div>' +
+    (heads.length ? '<div class="tablewrap"><table class="t"><thead><tr><th>Headword</th><th>Counted with it</th></tr></thead><tbody>' + heads.slice(0, 400).map(h => '<tr><td class="w">' + esc(h) + '</td><td>' + inv[h].sort().map(f => '<span class="chip">' + esc(f) + '<button data-act="fm-un" data-form="' + esc(f) + '" aria-label="Ungroup ' + esc(f) + '">×</button></span>').join('') + '</td></tr>').join('') + '</tbody></table></div>' : '<p class="hint">No grouped words yet.</p>') + '</div>' +
+    '<div class="panel"><h3>Stopwords</h3><p class="hint">Common words left out of counts when Remove stopwords is on. Negations (no, not, nor, ഇല്ല, അല്ല, illa, alla) are deliberately not on these lists, because they matter when reading attitudes. Separate words with spaces or new lines.</p>' +
+    '<div class="grid3"><label>English (' + S.stop.en.length + ')<textarea id="stEn" rows="8">' + esc(S.stop.en.join(' ')) + '</textarea></label><label>Malayalam (' + S.stop.ml.length + ')<textarea id="stMl" rows="8">' + esc(S.stop.ml.join(' ')) + '</textarea></label><label>Manglish (' + S.stop.mg.length + ')<textarea id="stMg" rows="8">' + esc(S.stop.mg.join(' ')) + '</textarea></label></div>' +
+    '<div class="actions"><button class="primary" data-act="st-save">Save stopwords</button><button data-act="st-reset">Restore default lists</button></div></div>' +
+    '<div class="panel"><h3>Counting rules</h3><div class="bar"><label>Ignore words shorter than<select id="setMin">' + [1,2,3,4].map(v => '<option value="' + v + '"' + (+S.settings.minLen === v ? ' selected' : '') + '>' + (v === 1 ? 'Count every word' : v + ' letters') + '</option>').join('') + '</select></label><label class="check" style="margin-bottom:6px"><input type="checkbox" id="setNum"' + (S.settings.numbers ? ' checked' : '') + '> Count numbers as words</label></div></div>';
+};
+
+/* ================= coding (layer 2) ================= */
+let PENDING = null;
+const codeMap = () => new Map(S.codes.map(c => [c.id, c]));
+function tint(hex, a){ const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex || ''); return m ? 'rgba(' + parseInt(m[1], 16) + ',' + parseInt(m[2], 16) + ',' + parseInt(m[3], 16) + ',' + a + ')' : 'rgba(31,111,97,' + a + ')'; }
+function codeOrder(){
+  const ids = new Set(S.codes.map(c => c.id)), out = [];
+  for (const t of S.codes.filter(c => !c.parent || !ids.has(c.parent))) { out.push({c:t, child:false}); for (const ch of S.codes.filter(x => x.parent === t.id)) out.push({c:ch, child:true}); }
+  return out;
+}
+function codeLabel(c, cm){ const p = c.parent && (cm || codeMap()).get(c.parent); return p ? p.name + ' / ' + c.name : c.name; }
+function newCode(name, parent){ const c = {id:'c' + uid(), name:String(name).trim(), color:PALETTE[S.codes.length % PALETTE.length], parent:parent || '', def:'', incl:'', excl:'', ex:''}; S.codes.push(c); return c; }
+function anchorAll(){
+  const byId = new Map(S.docs.map(d => [d.id, d]));
+  for (const sg of S.segs) {
+    const d = byId.get(sg.doc); if (!d) { sg._lost = true; continue; }
+    prep(d);
+    if (d._norm.slice(sg.s, sg.e) === sg.q) { sg._lost = false; continue; }
+    const i = d._norm.indexOf(sg.q);
+    if (i >= 0) { sg.s = i; sg.e = i + sg.q.length; sg._lost = false; } else sg._lost = true;
+  }
+}
+const segsOf = id => S.segs.filter(s => s.doc === id).sort((a, b) => a.s - b.s || a.e - b.e);
+function purge(){
+  const ids = new Set(S.docs.map(d => d.id)), cids = new Set(S.codes.map(c => c.id));
+  for (const s of S.segs) s.codes = s.codes.filter(c => cids.has(c));
+  S.segs = S.segs.filter(s => ids.has(s.doc) && (s.codes.length || s.memo || s.ess));
+  for (const k of Object.keys(S.wholistic)) if (!ids.has(k) || !S.wholistic[k]) delete S.wholistic[k];
+  for (const k of Object.keys(S.lineNotes)) if (!ids.has(k)) delete S.lineNotes[k];
+  for (const c of S.codes) if (c.parent && !cids.has(c.parent)) c.parent = '';
+  S.ui.code.active = (S.ui.code.active || []).filter(c => cids.has(c));
+}
+function snap(d, s, e){
+  const toks = d._tok; let ns = -1, ne = -1;
+  for (const t of toks) if (t.e > s) { ns = t.s; break; }
+  for (let i = toks.length - 1; i >= 0; i--) if (toks[i].s < e) { ne = toks[i].e; break; }
+  return (ns < 0 || ne <= ns) ? null : {s:ns, e:ne};
+}
+function applyCodes(ids, target){
+  target = target || PENDING;
+  if (!target) { toast('Select some words in the response first'); return; }
+  if (!ids.length) { toast('Tick at least one code to apply'); return; }
+  const d = S.docs.find(x => x.id === target.doc); if (!d) return; prep(d);
+  let sg = S.segs.find(x => x.doc === d.id && x.s === target.s && x.e === target.e);
+  if (!sg) { sg = {id:'s' + uid(), doc:d.id, s:target.s, e:target.e, q:d._norm.slice(target.s, target.e), codes:[], memo:'', ess:false, at:new Date().toISOString()}; S.segs.push(sg); }
+  let added = 0; for (const c of ids) if (sg.codes.indexOf(c) < 0) { sg.codes.push(c); added++; }
+  S.ui.code.seg = sg.id; PENDING = null;
+  try { window.getSelection().removeAllRanges(); } catch (e) {}
+  changed(); toast(added ? 'Coded "' + trunc(sg.q, 40) + '"' : 'Those codes are already on this passage');
+}
+function captureSelection(){
+  if (S.ui.view !== 'code') return;
+  const sel = window.getSelection(); if (!sel || !sel.rangeCount || sel.isCollapsed) return;
+  const r = sel.getRangeAt(0); let node = r.commonAncestorContainer; if (node.nodeType === 3) node = node.parentNode;
+  const box = node && node.closest ? node.closest('[data-base]') : null; if (!box) return;
+  const pre = document.createRange(); pre.selectNodeContents(box); pre.setEnd(r.startContainer, r.startOffset);
+  const s = +box.getAttribute('data-base') + pre.toString().length, e = s + r.toString().length;
+  const d = S.docs.find(x => x.id === S.ui.code.doc); if (!d) return;
+  const sn = snap(prep(d), s, e); if (!sn) return;
+  PENDING = {doc:d.id, s:sn.s, e:sn.e}; drawSelBox();
+}
+function drawSelBox(){
+  const el = $('#selbox'); if (!el) return;
+  const d = PENDING && S.docs.find(x => x.id === PENDING.doc);
+  const desk = d ? '<p class="hint" style="margin:0">Selected</p><blockquote>' + esc(d._norm.slice(PENDING.s, PENDING.e)) + '</blockquote><div class="actions" style="margin-top:6px"><button class="primary" data-act="cd-apply">Apply ticked codes</button><button data-act="cd-clearsel">Clear</button></div>'
+    : '<p class="hint" style="margin:0">Select words in the response, then tick codes and apply them. Keys 1 to 9 apply a numbered code straight away; [ and ] move between responses.</p>';
+  const order = codeOrder();
+  const mob = d ? '<div class="tray-q">' + esc(d._norm.slice(PENDING.s, PENDING.e)) + '</div>' +
+      (order.length ? '<div class="tray-chips" role="group" aria-label="Tap a code to apply it">' + order.map(o => '<button class="tchip" data-act="cd-applyone" data-id="' + o.c.id + '" style="--sc:' + tint(o.c.color, .22) + ';--sb:' + o.c.color + '">' + esc(o.c.name) + '</button>').join('') + '</div>' : '<p class="hint" style="margin:0">Add a code under Codes to apply first.</p>') +
+      '<div class="tray-row"><span class="hint" style="margin:0">Tap a code to apply it</span><button data-act="cd-clearsel">Cancel</button></div>'
+    : '<p class="hint" style="margin:0">Press and hold a word, drag the handles over the passage, then tap a code here.</p>';
+  el.innerHTML = '<div class="sb-desk">' + desk + '</div><div class="sb-mob">' + mob + '</div>';
+}
+function renderRange(d, a0, b0, segs, selId, cm){
+  const text = d._norm, live = segs.filter(s => !s._lost && s.e > a0 && s.s < b0), pts = new Set([a0, b0]);
+  for (const s of live) { pts.add(Math.max(a0, s.s)); pts.add(Math.min(b0, s.e)); }
+  const arr = Array.from(pts).sort((x, y) => x - y); let out = '';
+  for (let i = 0; i < arr.length - 1; i++) {
+    const a = arr[i], b = arr[i + 1]; if (a === b) continue;
+    const chunk = esc(text.slice(a, b)), cover = live.filter(s => s.s <= a && s.e >= b);
+    if (!cover.length) { out += chunk; continue; }
+    const c = cm.get(cover[0].codes[0]), col = c ? c.color : '#8A949E';
+    const names = Array.from(new Set([].concat.apply([], cover.map(s => s.codes)))).map(id => (cm.get(id) || {}).name).filter(Boolean).join(', ');
+    out += '<span class="cseg' + (cover.some(s => s.id === selId) ? ' sel' : '') + (cover.length > 1 ? ' multi' : '') + (cover.some(s => s.ess) ? ' ess' : '') + '" data-segs="' + cover.map(s => s.id).join(' ') + '" style="--sc:' + tint(col, .28) + ';--sb:' + col + '" title="' + esc(names) + '">' + chunk + '</span>';
+  }
+  return out;
+}
+function sentences(d){
+  const out = []; let cur = null;
+  for (const t of d._tok) { if (!cur || cur.g !== t.g) { if (cur) out.push(cur); cur = {g:t.g, s:t.s, e:t.e}; } else cur.e = t.e; }
+  if (cur) out.push(cur);
+  for (const x of out) { const m = /^\s*[.!?;:\u0964]+/.exec(d._norm.slice(x.e)); if (m) x.e += m[0].length; }
+  return out;
+}
+function chipHTML(c, segId){ return '<span class="cchip" style="--sc:' + tint(c.color, .22) + ';--sb:' + c.color + '">' + esc(c.name) + (segId ? '<button data-act="seg-uncode" data-id="' + segId + '" data-code="' + c.id + '" aria-label="Remove ' + esc(c.name) + '">×</button>' : '') + '</span>'; }
+function linesView(d, segs, cm){
+  const notes = S.lineNotes[d.id] || [];
+  return '<div class="lines">' + sentences(d).map(x => {
+    const txt = d._norm.slice(x.s, x.e), note = (notes.find(n => n.q === txt) || {}).note || '';
+    const codes = Array.from(new Set([].concat.apply([], segs.filter(s => !s._lost && s.e > x.s && s.s < x.e).map(s => s.codes))));
+    return '<div class="line"><div class="ltext" data-base="' + x.s + '">' + renderRange(d, x.s, x.e, segs, S.ui.code.seg, cm) + '</div><div>' +
+      (codes.length ? '<div>' + codes.map(id => cm.get(id) ? chipHTML(cm.get(id)) : '').join('') + '</div>' : '') +
+      '<button data-act="line-apply" data-s="' + x.s + '" data-e="' + x.e + '">Apply ticked codes to this line</button>' +
+      '<textarea data-linenote="' + d.id + '" data-q="' + esc(txt) + '" rows="2" placeholder="What does this line reveal?" style="margin-top:6px">' + esc(note) + '</textarea></div></div>';
+  }).join('') + '</div>';
+}
+function afterCodeRender(){ drawSelBox(); const el = document.getElementById('seg-' + S.ui.code.seg); if (el && el.scrollIntoView) el.scrollIntoView({block:'nearest'}); }
+
+R.code = function(){
+  const title = 'Coding workspace', text = 'Read each response closely, select the words that matter and attach codes. Write a wholistic statement for the response as a whole, star essential passages, and switch to line by line for detailed reading.';
+  const docs = filtered(); if (!docs.length) return emptyView(title, text);
+  anchorAll();
+  const u = S.ui.code; if (!docs.some(d => d.id === u.doc)) { u.doc = docs[0].id; u.seg = ''; }
+  const d = docs.find(x => x.id === u.doc); prep(d);
+  const q = (u.q || '').trim().toLowerCase();
+  const list = q ? docs.filter(x => (x.pid + ' ' + x.group + ' ' + x.item + ' ' + x.text).toLowerCase().indexOf(q) >= 0) : docs;
+  const cnt = {}; for (const s of S.segs) cnt[s.doc] = (cnt[s.doc] || 0) + 1;
+  const cm = codeMap(), segs = segsOf(d.id), idx = docs.indexOf(d);
+  const coded = docs.filter(x => cnt[x.id]).length;
+  const left = '<div><input type="search" id="cdQ" value="' + esc(u.q || '') + '" placeholder="Find a response" style="width:100%;margin-bottom:6px"><p class="hint" style="margin:0 0 6px">' + fmt(coded) + ' of ' + fmt(docs.length) + ' responses coded</p><div class="doclist">' +
+    list.slice(0, 400).map(x => '<button data-act="cd-doc" data-id="' + x.id + '" class="' + (x.id === d.id ? 'on' : '') + '"><span class="dot" style="--c:' + colorOf(x.group) + '"></span>' + esc(x.pid || 'Untitled') + (cnt[x.id] ? ' <span class="muted">(' + cnt[x.id] + ')</span>' : '') + (S.wholistic[x.id] ? ' <span class="muted" title="Has a wholistic statement">✎</span>' : '') + '<span class="sub">' + esc(trunc(x.item || x.group || '', 40)) + '</span></button>').join('') +
+    '</div>' + (list.length > 400 ? '<p class="hint">Showing 400. Search to narrow the list.</p>' : '') + '</div>';
+  const pick = '<div class="docpick mobile-only"><label>Response (' + fmt(idx + 1) + ' of ' + fmt(docs.length) + ', ' + fmt(coded) + ' coded)<select id="cdPick">' + docs.map(x => '<option value="' + x.id + '"' + (x.id === d.id ? ' selected' : '') + '>' + esc((x.pid || 'Untitled') + ', ' + (x.group || 'Ungrouped') + (cnt[x.id] ? ' (' + cnt[x.id] + ' coded)' : '')) + '</option>').join('') + '</select></label></div>';
+  const headRow = pick + '<div class="bar codehead" style="align-items:center"><div><h3 style="margin:0">' + esc(d.pid || 'Response') + '</h3><p class="hint" style="margin:0">' + esc((d.group || 'Ungrouped') + ', ' + (d.item || 'no item') + ', ' + langOf(d) + ', ' + d.mode + ', ' + wordCount(d) + ' words') + '</p></div><span class="spacer"></span>' +
+    '<div class="seg" style="margin:0"><button data-act="cd-mode" data-mode="read" class="' + (u.mode !== 'lines' ? 'on' : '') + '">Read and code</button><button data-act="cd-mode" data-mode="lines" class="' + (u.mode === 'lines' ? 'on' : '') + '">Line by line</button></div>' +
+    '<button data-act="cd-prev"' + (idx <= 0 ? ' disabled' : '') + '>Previous</button><button data-act="cd-next"' + (idx >= docs.length - 1 ? ' disabled' : '') + '>Next</button></div>';
+  const centre = '<div>' + headRow + (u.mode === 'lines' ? linesView(d, segs, cm) : '<div id="reader" class="reader" data-base="0" lang="' + (langOf(d) === 'Malayalam' ? 'ml' : 'en') + '">' + renderRange(d, 0, d._norm.length, segs, u.seg, cm) + '</div>') +
+    '<div class="panel" style="margin-top:14px"><h3>Wholistic statement</h3><p class="hint">Van Manen\'s wholistic reading: what single sentence captures the fundamental meaning of this response as a whole?</p><textarea id="cdWhole" rows="3" placeholder="Write it in your own words">' + esc(S.wholistic[d.id] || '') + '</textarea></div></div>';
+  const order = codeOrder();
+  const codesPanel = '<div class="panel"><h3>Codes to apply</h3>' + (order.length ? order.map((o, i) => '<label class="codepick' + (o.child ? ' child' : '') + '"><input type="checkbox" data-active="' + o.c.id + '"' + (u.active.indexOf(o.c.id) >= 0 ? ' checked' : '') + '><span class="swatch" style="--c:' + esc(o.c.color) + '"></span><span>' + esc(o.c.name) + '</span>' + (i < 9 ? '<kbd>' + (i + 1) + '</kbd>' : '') + '</label>').join('') : '<p class="hint">No codes yet. Add your first one below.</p>') +
+    '<div class="bar" style="margin:8px 0 0"><input id="cdNew" data-enter="cd-newcode" placeholder="New code" style="flex:1;min-width:0"><button data-act="cd-newcode">Add</button></div><p class="hint" style="margin:6px 0 0">Arrange codes under themes in the <button class="link" data-view="codebook">Codebook</button>.</p></div>';
+  const segList = '<div class="panel seglist"><h3>Coded in this response (' + segs.length + ')</h3>' + (segs.length ? segs.map(sg => '<div class="segi' + (sg.id === u.seg ? ' sel' : '') + '" id="seg-' + sg.id + '"><blockquote><button class="star" data-act="seg-ess" data-id="' + sg.id + '" title="' + (sg.ess ? 'Essential passage' : 'Mark as essential') + '" aria-pressed="' + sg.ess + '" aria-label="Essential passage">' + (sg.ess ? '★' : '☆') + '</button>' + (sg._lost ? '<span class="muted">(the response text changed; select it again) </span>' : '') + '<button class="link" data-act="seg-pick" data-id="' + sg.id + '" style="color:var(--ink);text-decoration:none">' + esc(trunc(sg.q, 160)) + '</button></blockquote>' +
+    sg.codes.map(cid => cm.get(cid) ? chipHTML(cm.get(cid), sg.id) : '').join('') +
+    '<textarea data-segmemo="' + sg.id + '" rows="2" placeholder="Memo on this passage" style="margin-top:4px">' + esc(sg.memo || '') + '</textarea><div class="actions" style="margin-top:4px"><button class="link" data-act="seg-addcodes" data-id="' + sg.id + '">Add ticked codes</button><span class="spacer"></span><button class="link" style="color:var(--danger)" data-act="seg-del" data-id="' + sg.id + '">Remove</button></div></div>').join('') : '<p class="hint">Nothing coded here yet.</p>') + '</div>';
+  return head(title, text) + '<div class="codegrid">' + left + centre + '<div class="side-panel"><div class="panel selbox" id="selbox"></div>' + codesPanel + segList + '</div></div>';
+};
+
+function codeStats(){ const segN = {}, docN = {}; for (const s of S.segs) { if (s._lost) continue; for (const c of s.codes) { segN[c] = (segN[c] || 0) + 1; (docN[c] = docN[c] || new Set()).add(s.doc); } } return {segN, docN}; }
+R.codebook = function(){
+  const title = 'Codebook', text = 'Your codes and themes with definitions, so coding stays consistent across hundreds of responses and can be reported in your methods chapter. Codes can sit under a theme.';
+  anchorAll();
+  const u = S.ui.cb, order = codeOrder(), cm = codeMap(), st = codeStats();
+  if (!cm.has(u.sel)) u.sel = order.length ? order[0].c.id : '';
+  const tree = '<div class="tree">' + (order.length ? order.map(o => '<button data-act="cb-sel" data-id="' + o.c.id + '" class="' + (o.child ? 'child ' : '') + (o.c.id === u.sel ? 'on' : '') + '"><span class="swatch" style="--c:' + esc(o.c.color) + '"></span><span style="' + (o.child ? '' : 'font-weight:600') + '">' + esc(o.c.name) + '</span><span class="n">' + (st.segN[o.c.id] || 0) + '</span></button>').join('') : '<p class="hint">No codes yet.</p>') +
+    '<div class="actions"><button data-act="cb-new">New theme or code</button><button data-act="cb-export"' + (order.length ? '' : ' disabled') + '>Download CSV</button></div>' +
+    '<div class="actions"><label class="filepick" style="padding:6px 10px">Import a codebook CSV<input type="file" id="cbFile" accept=".csv,.tsv,.txt"></label></div></div>';
+  const c = cm.get(u.sel);
+  let editor = '<div class="panel empty"><p>Create your first code here or in the coding workspace. You can also import a codebook drafted in Excel, with columns named Name, Theme, Definition, Include when, Exclude when and Example.</p></div>';
+  if (c) {
+    const isParent = S.codes.some(x => x.parent === c.id), parents = S.codes.filter(x => !x.parent && x.id !== c.id);
+    const quotes = S.segs.filter(s => !s._lost && s.codes.indexOf(c.id) >= 0).slice(0, 12);
+    editor = '<div class="panel"><div class="grid2"><label>Name<input id="cbName" value="' + esc(c.name) + '"></label><label>Colour<input type="color" id="cbColor" value="' + esc(c.color) + '" style="height:36px;padding:2px"></label>' +
+      '<label>Theme it belongs to<select id="cbParent"' + (isParent ? ' disabled title="Codes sit under this one, so it stays a theme"' : '') + '><option value="">None (a theme at the top level)</option>' + parents.map(p => '<option value="' + p.id + '"' + (c.parent === p.id ? ' selected' : '') + '>' + esc(p.name) + '</option>').join('') + '</select></label>' +
+      '<label>Used in<input value="' + fmt(st.segN[c.id] || 0) + ' passages, ' + fmt(st.docN[c.id] ? st.docN[c.id].size : 0) + ' responses" disabled></label></div>' +
+      '<label class="block">Definition<textarea id="cbDef" rows="3" placeholder="What this code captures">' + esc(c.def) + '</textarea></label>' +
+      '<div class="grid2"><label>Include when<textarea id="cbIncl" rows="3">' + esc(c.incl) + '</textarea></label><label>Exclude when<textarea id="cbExcl" rows="3">' + esc(c.excl) + '</textarea></label></div>' +
+      '<label class="block">Example quote<textarea id="cbEx" rows="2">' + esc(c.ex) + '</textarea></label>' +
+      (quotes.length ? '<details><summary>Pick an example from coded passages</summary>' + quotes.map(s => '<p style="margin:6px 0"><button class="link" data-act="cb-example" data-seg="' + s.id + '">' + esc(trunc(s.q, 170)) + '</button></p>').join('') + '</details>' : '') +
+      '<div class="actions"><button class="primary" data-act="cb-save">Save</button><button data-act="cb-child">' + (c.parent ? 'New code in the same theme' : 'New code under this theme') + '</button><span class="spacer"></span>' +
+      (S.codes.length > 1 ? '<label style="flex-direction:row;align-items:center;gap:6px">Merge into<select id="cbMergeTo">' + S.codes.filter(x => x.id !== c.id).map(x => '<option value="' + x.id + '">' + esc(codeLabel(x, cm)) + '</option>').join('') + '</select></label><button data-act="cb-merge">Merge</button>' : '') +
+      '<button class="danger" data-act="cb-del">Delete</button></div></div>';
+  }
+  return head(title, text) + '<div class="lexgrid"><div>' + tree + '</div><div>' + editor + '</div></div>';
+};
+
+function retRows(docs){
+  const u = S.ui.ret, dm = new Map(docs.map(d => [d.id, d])), gs = groupsIn(docs);
+  let set = null; if (u.code) { set = new Set([u.code]); for (const c of S.codes) if (c.parent === u.code) set.add(c.id); }
+  const q = normalizeText(u.q || '').toLowerCase().trim();
+  return S.segs.filter(s => dm.has(s.doc) && !s._lost && (!set || s.codes.some(c => set.has(c))) && (!u.ess || s.ess) && (!q || s.q.toLowerCase().indexOf(q) >= 0 || (s.memo || '').toLowerCase().indexOf(q) >= 0))
+    .sort((a, b) => { const da = dm.get(a.doc), db = dm.get(b.doc); return (gs.indexOf(da.group || 'Ungrouped') - gs.indexOf(db.group || 'Ungrouped')) || String(da.pid).localeCompare(String(db.pid), undefined, {numeric:true}) || a.s - b.s; });
+}
+R.segs = function(){
+  const title = 'Coded segments', text = 'Every passage you have coded, gathered by code or theme across responses. Read a theme\'s passages side by side when writing it up, and pull starred essential passages for quotation.';
+  const docs = filtered(); if (!docs.length) return emptyView(title, text);
+  anchorAll();
+  const u = S.ui.ret, cm = codeMap(); if (u.code && !cm.has(u.code)) u.code = '';
+  const controls = '<div class="panel"><div class="bar"><label>Code or theme<select id="rtCode"><option value="">All codes</option>' + codeOrder().map(o => '<option value="' + o.c.id + '"' + (u.code === o.c.id ? ' selected' : '') + '>' + (o.child ? '\u2003' : '') + esc(o.c.name) + (!o.child && S.codes.some(x => x.parent === o.c.id) ? ' (with its codes)' : '') + '</option>').join('') + '</select></label>' +
+    '<label>Search passages and memos<input type="search" id="rtQ" value="' + esc(u.q || '') + '"></label><label class="check" style="margin-bottom:6px"><input type="checkbox" id="rtEss"' + (u.ess ? ' checked' : '') + '> Essential passages only</label><span class="spacer"></span><button data-act="rt-export">Download CSV</button></div></div>';
+  if (!S.segs.length) return head(title, text) + controls + '<div class="panel empty"><p>Nothing is coded yet. Open the coding workspace, select words in a response and apply a code.</p><div class="actions"><button class="primary" data-view="code">Go to the coding workspace</button></div></div>';
+  const rows = retRows(docs), dm = new Map(docs.map(d => [d.id, d])), gs = groupsIn(docs), byG = {}, dset = new Set();
+  for (const s of rows) { const g = dm.get(s.doc).group || 'Ungrouped'; byG[g] = (byG[g] || 0) + 1; dset.add(s.doc); }
+  return head(title, text) + controls + '<div class="panel"><h3>' + fmt(rows.length) + ' passages from ' + fmt(dset.size) + ' responses</h3>' +
+    (gs.length > 1 && rows.length ? '<p class="hint">' + gs.map(g => '<span class="dot" style="--c:' + colorOf(g) + '"></span>' + esc(g) + ': ' + fmt(byG[g] || 0)).join('&nbsp;&nbsp; ') + '</p>' : '') +
+    (rows.length ? '<div class="kwic ret">' + rows.slice(0, 600).map(s => { const d = dm.get(s.doc); return '<div class="ri" data-act="rt-open" data-id="' + s.id + '" tabindex="0" title="Open in the coding workspace"><blockquote>' + (s.ess ? '<span class="star" aria-label="Essential">★</span>' : '') + esc(s.q) + '</blockquote><div class="hint" style="margin:0"><span class="dot" style="--c:' + colorOf(d.group) + '"></span>' + esc((d.pid || '–') + ', ' + (d.group || 'Ungrouped') + ', ' + (d.item || 'no item')) + '</div><div>' + s.codes.map(cid => cm.get(cid) ? chipHTML(cm.get(cid)) : '').join('') + '</div>' + (s.memo ? '<p class="hint" style="margin:4px 0 0">Memo: ' + esc(s.memo) + '</p>' : '') + '</div>'; }).join('') + '</div>' + (rows.length > 600 ? '<p class="hint">Showing 600. The CSV has all of them.</p>' : '') : '<p class="hint">No passages match. Choose another code or clear the search.</p>') + '</div>';
+};
+
+function codeTable(docs){
+  const gs = groupsIn(docs), dm = new Map(docs.map(d => [d.id, d])), segs = S.segs.filter(s => dm.has(s.doc) && !s._lost), nDocs = {};
+  for (const d of docs) { const g = d.group || 'Ungrouped'; nDocs[g] = (nDocs[g] || 0) + 1; }
+  const rows = codeOrder().map(o => {
+    const set = new Set([o.c.id]); if (!o.child) for (const c of S.codes) if (c.parent === o.c.id) set.add(c.id);
+    const r = {}; for (const g of gs) r[g] = {segs:0, docs:new Set()}; const all = {segs:0, docs:new Set()};
+    for (const s of segs) { if (!s.codes.some(c => set.has(c))) continue; const g = dm.get(s.doc).group || 'Ungrouped'; if (!r[g]) r[g] = {segs:0, docs:new Set()}; r[g].segs++; r[g].docs.add(s.doc); all.segs++; all.docs.add(s.doc); }
+    return {o, r, all};
+  });
+  return {gs, rows, nDocs, nAll:docs.length, segs, dm};
+}
+function coMatrix(T, unit){
+  const codes = S.codes.slice(0, 20), k = codes.length, idx = new Map(codes.map((c, i) => [c.id, i])), M = Array.from({length:k}, () => new Array(k).fill(0));
+  const byDoc = new Map(); for (const s of T.segs) { if (!byDoc.has(s.doc)) byDoc.set(s.doc, []); byDoc.get(s.doc).push(s); }
+  for (const list of byDoc.values()) {
+    if (unit === 'doc') {
+      const has = new Set(); for (const s of list) for (const c of s.codes) if (idx.has(c)) has.add(idx.get(c));
+      const arr = Array.from(has); for (const a of arr) { M[a][a]++; for (const b of arr) if (a !== b) M[a][b]++; }
+    } else {
+      for (let i = 0; i < list.length; i++) {
+        const ci = list[i].codes.filter(c => idx.has(c)).map(c => idx.get(c));
+        for (const a of ci) M[a][a]++;
+        for (const a of ci) for (const b of ci) if (a !== b) M[a][b]++;
+        for (let j = 0; j < list.length; j++) { if (i === j || !(list[j].s < list[i].e && list[j].e > list[i].s)) continue; const cj = list[j].codes.filter(c => idx.has(c)).map(c => idx.get(c)); for (const a of ci) for (const b of cj) if (a !== b) M[a][b] += 0.5; }
+      }
+    }
+  }
+  return {codes, M};
+}
+R.canal = function(){
+  const title = 'Code analysis', text = 'How codes and themes spread across groups, and which codes turn up together. Counts show where a code appears; the meaning comes from reading its passages.';
+  const docs = filtered(); if (!docs.length) return emptyView(title, text);
+  if (!S.codes.length) return head(title, text) + '<div class="panel empty"><p>No codes yet. Build your codebook as you code in the workspace.</p><div class="actions"><button class="primary" data-view="code">Go to the coding workspace</button></div></div>';
+  anchorAll();
+  const u = S.ui.ca, m = u.measure, T = codeTable(docs);
+  const val = (x, n) => m === 'pct' ? (n ? x.docs.size / n * 100 : 0) : m === 'per' ? (n ? x.segs / n : 0) : x.segs;
+  const df = v => m === 'segs' ? fmt(v) : fmt(v, m === 'pct' ? 0 : 2);
+  const table = '<div class="tablewrap"><table class="t"><thead><tr><th>Code</th>' + T.gs.map(g => '<th class="num"><span class="dot" style="--c:' + colorOf(g) + '"></span>' + esc(trunc(g, 18)) + '</th>').join('') + '<th class="num">All shown</th></tr></thead><tbody>' +
+    T.rows.map(x => '<tr><td style="' + (x.o.child ? 'padding-left:28px' : 'font-weight:600') + '"><span class="swatch" style="--c:' + esc(x.o.c.color) + ';display:inline-block;margin-right:6px"></span>' + esc(x.o.c.name) + '</td>' + T.gs.map(g => '<td class="num" title="' + fmt((x.r[g] || {segs:0}).segs) + ' passages in ' + fmt(x.r[g] ? x.r[g].docs.size : 0) + ' of ' + fmt(T.nDocs[g] || 0) + ' responses">' + df(val(x.r[g] || {segs:0, docs:new Set()}, T.nDocs[g])) + '</td>').join('') + '<td class="num"><strong>' + df(val(x.all, T.nAll)) + '</strong></td></tr>').join('') + '</tbody></table></div>';
+  const themes = T.rows.filter(x => !x.o.child);
+  const chart = T.gs.length > 1 ? grouped(themes.map(x => ({label:x.o.c.name, x})), T.gs.map(g => ({label:g, c:colorOf(g)})), (c, s) => val(c.x.r[s.label] || {segs:0, docs:new Set()}, T.nDocs[s.label]), {fmt:df}) : hbar(themes.map(x => ({label:x.o.c.name, v:val(x.all, T.nAll), c:x.o.c.color})), {fmt:df});
+  const co = coMatrix(T, u.unit), k = co.codes.length; let max = 0;
+  for (let a = 0; a < k; a++) for (let b = 0; b < k; b++) if (a !== b) max = Math.max(max, co.M[a][b]);
+  const heat = '<div class="tablewrap" style="max-height:none"><table class="t heat"><thead><tr><th></th>' + co.codes.map(c => '<th class="num">' + esc(trunc(c.name, 14)) + '</th>').join('') + '</tr></thead><tbody>' +
+    co.codes.map((c, a) => '<tr><th style="position:static;text-align:left">' + esc(trunc(c.name, 26)) + '</th>' + co.codes.map((x, b) => { if (a === b) return '<td class="cell diag">' + fmt(co.M[a][a]) + '</td>'; const v = co.M[a][b], al = max ? v / max : 0; return '<td class="cell" style="background:rgba(31,111,97,' + (al * .75).toFixed(2) + ');color:' + (al > .55 ? '#fff' : 'inherit') + '">' + fmt(v, v % 1 ? 1 : 0) + '</td>'; }).join('') + '</tr>').join('') + '</tbody></table></div>';
+  return head(title, text) +
+    '<div class="panel"><div class="bar" style="align-items:center"><h3 style="margin:0">Codes by group</h3><span class="spacer"></span><label>Measure<select id="caMeasure"><option value="segs"' + (m === 'segs' ? ' selected' : '') + '>Passages</option><option value="pct"' + (m === 'pct' ? ' selected' : '') + '>% of responses</option><option value="per"' + (m === 'per' ? ' selected' : '') + '>Passages per response</option></select></label><button data-act="ca-export">Download CSV</button></div>' +
+    table + '<p class="hint">Themes include the codes under them. Hover a cell for counts. The chart shows themes.</p>' + chart + '</div>' +
+    '<div class="panel"><div class="bar" style="align-items:center"><h3 style="margin:0">Codes that occur together</h3><span class="spacer"></span><label>Count<select id="caUnit"><option value="doc"' + (u.unit === 'doc' ? ' selected' : '') + '>Responses with both codes</option><option value="overlap"' + (u.unit === 'overlap' ? ' selected' : '') + '>Shared or overlapping passages</option></select></label><button data-act="ca-export-co">Download CSV</button></div>' +
+    heat + '<p class="hint">The grey diagonal is the total for each code.' + (S.codes.length > 20 ? ' Showing the first 20 codes in codebook order.' : '') + '</p></div>';
+};
+
+R.memos = function(){
+  const title = 'Memos & journal', text = 'Analytic memos and your reflexive journal, kept beside the data. In hermeneutic phenomenology, writing down your own assumptions as you read is part of the method, so each entry is dated.';
+  const u = S.ui.memo, list = S.memos.slice().sort((a, b) => String(b.at).localeCompare(String(a.at)));
+  if (!S.memos.some(x => x.id === u.sel)) u.sel = list.length ? list[0].id : '';
+  const cur = S.memos.find(x => x.id === u.sel);
+  const side = '<div class="lexlist">' + (list.length ? list.map(x => '<button class="' + (x.id === u.sel ? 'on' : '') + '" data-act="memo-sel" data-id="' + x.id + '">' + esc(trunc(x.title || 'Untitled memo', 30)) + '<span class="n">' + esc(String(x.at).slice(0, 10)) + '</span></button>').join('') : '<p class="hint">No memos yet.</p>') +
+    '<div class="actions"><button class="primary" data-act="memo-new">New memo</button><button data-act="memo-export"' + (list.length ? '' : ' disabled') + '>Download CSV</button></div></div>';
+  const editor = cur ? '<div class="panel"><label class="block">Title<input id="mmTitle" value="' + esc(cur.title) + '"></label><label class="block">Memo<textarea id="mmText" rows="14">' + esc(cur.text) + '</textarea></label><div class="actions"><span class="hint" style="margin:0">Saved as you type. Started ' + esc(String(cur.at).slice(0, 16).replace('T', ' ')) + '</span><span class="spacer"></span><button class="danger" data-act="memo-del">Delete memo</button></div></div>'
+    : '<div class="panel empty"><p>Start a memo for a theme you see forming, or a journal entry about your own assumptions before a reading session.</p></div>';
+  const wd = S.docs.filter(d => S.wholistic[d.id]);
+  const whole = '<div class="panel"><div class="bar" style="align-items:center"><h3 style="margin:0">Wholistic statements (' + wd.length + ')</h3><span class="spacer"></span><button data-act="whole-export"' + (wd.length ? '' : ' disabled') + '>Download CSV</button><button data-act="lines-export"' + (Object.keys(S.lineNotes).length ? '' : ' disabled') + '>Download line notes CSV</button></div>' +
+    (wd.length ? '<div class="tablewrap"><table class="t"><thead><tr><th>ID</th><th>Group</th><th>Statement</th></tr></thead><tbody>' + wd.map(d => '<tr><td><button class="link" data-act="cd-doc" data-id="' + d.id + '">' + esc(d.pid || 'Untitled') + '</button></td><td>' + esc(d.group || 'Ungrouped') + '</td><td>' + esc(S.wholistic[d.id]) + '</td></tr>').join('') + '</tbody></table></div>' : '<p class="hint">Wholistic statements you write in the coding workspace gather here.</p>') + '</div>';
+  return head(title, text) + '<div class="lexgrid"><div>' + side + '</div><div>' + editor + '</div></div>' + whole;
+};
+
+function importCodebook(txt){
+  const rows = parseCSV(txt); if (rows.length < 2) { toast('That file has no rows.'); return; }
+  const h = rows[0].map(x => x.trim().toLowerCase()), col = re => h.findIndex(x => re.test(x));
+  let iName = col(/^(code|name|code name)$/); if (iName < 0) iName = col(/code|name/);
+  const iTheme = col(/theme|parent|category/), iDef = col(/defin/), iIn = col(/includ/), iEx = col(/exclu/), iEg = col(/example|quote/);
+  if (iName < 0) { toast('The file needs a column called Name or Code.'); return; }
+  let n = 0;
+  for (const r of rows.slice(1)) {
+    const name = (r[iName] || '').trim(); if (!name) continue;
+    const th = iTheme >= 0 ? (r[iTheme] || '').trim() : ''; let parent = '';
+    if (th && th.toLowerCase() !== name.toLowerCase()) { let t = S.codes.find(c => !c.parent && c.name.toLowerCase() === th.toLowerCase()); if (!t) t = newCode(th, ''); parent = t.id; }
+    let c = S.codes.find(x => x.name.toLowerCase() === name.toLowerCase() && x.parent === parent);
+    if (!c) { c = newCode(name, parent); n++; }
+    if (iDef >= 0 && r[iDef]) c.def = r[iDef].trim(); if (iIn >= 0 && r[iIn]) c.incl = r[iIn].trim(); if (iEx >= 0 && r[iEx]) c.excl = r[iEx].trim(); if (iEg >= 0 && r[iEg]) c.ex = r[iEg].trim();
+  }
+  changed(); toast('Imported ' + n + ' codes');
+}
+function sampleCodebook(){
+  if (S.codes.length) return;
+  const t1 = newCode('Labelling and stigma'), t2 = newCode('Illness framing'), t3 = newCode('Media influence');
+  const c11 = newCode('Name-calling', t1.id), c12 = newCode('Family shame', t1.id), c21 = newCode('Disease model', t2.id), c22 = newCode('Treatment as turning point', t2.id), c31 = newCode('Comic drunk trope', t3.id), c32 = newCode('Drinking as heroic', t3.id);
+  c11.def = 'Being called, or calling someone, by a label for heavy drinkers.'; c12.def = 'Shame carried by the family rather than the drinker.'; c21.def = 'Drinking described as an illness or medical condition.'; c22.def = 'Treatment marks a change in how the person sees the problem.'; c31.def = 'Drinking characters shown as figures of fun.'; c32.def = 'Drinking linked with strength, masculinity or heroism.';
+  const mark = (pid, quote, codes, ess) => { const d = S.docs.find(x => x.pid === pid); if (!d) return; prep(d); const i = d._norm.indexOf(normalizeText(quote)); if (i < 0) return; S.segs.push({id:'s' + uid(), doc:d.id, s:i, e:i + normalizeText(quote).length, q:normalizeText(quote), codes:codes.map(c => c.id), memo:'', ess:!!ess, at:new Date().toISOString()}); };
+  mark('Sample 01', 'നാട്ടുകാർ എന്നെ കുടിയൻ എന്ന് വിളിച്ചു', [c11], true);
+  mark('Sample 02', 'cinemayil kudiyane comedy aayi kaanikkunnu', [c31]);
+  mark('Sample 03', 'Films showed drinking as heroic', [c32]);
+  mark('Sample 03', 'I see it as an illness, not a weakness', [c21], true);
+  mark('Sample 04', 'ചികിത്സയ്ക്ക് ശേഷം പ്രതീക്ഷ വന്നു', [c22]);
+  mark('Sample 05', 'The family carried the shame for years', [c12]);
+  mark('Sample 08', 'മദ്യാസക്തി ഒരു രോഗമാണ്', [c21]);
+  mark('Sample 08', 'സിനിമകൾ പലപ്പോഴും കുടിയനെ തമാശക്കാരനായി കാണിക്കുന്നു', [c31]);
+}
+
+/* ================= dialog ================= */
+function openDoc(id, hl, near){
+  const list = filtered().map(d => d.id);
+  DLG = {id, hl:hl || '', near:near || '', regex:!!(hl && S.ui.kwic.regex && hl === S.ui.kwic.q), edit:false, list:list.indexOf(id) >= 0 ? list : S.docs.map(d => d.id)};
+  drawDlg();
+  const dlg = $('#dlg');
+  if (!dlg.open) { if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', ''); }
+}
+function closeDlg(){ const dlg = $('#dlg'); if (dlg.close) dlg.close(); else dlg.removeAttribute('open'); }
+function highlightDoc(d){
+  const text = d._norm; if (!DLG.hl && !DLG.near) return esc(text);
+  const ranges = [];
+  const add = (q, cls, regex) => { if (!q) return; try { for (const h of findHits(d, parseQuery(q, {regex}))) ranges.push([d._tok[h.i].s, d._tok[h.i + h.len - 1].e, cls]); } catch (e) {} };
+  add(DLG.hl, '', DLG.regex); add(DLG.near, 'near', false);
+  ranges.sort((a, b) => a[0] - b[0]);
+  let out = '', pos = 0;
+  for (const r of ranges) { if (r[0] < pos) continue; out += esc(text.slice(pos, r[0])) + '<mark' + (r[2] ? ' class="' + r[2] + '"' : '') + '>' + esc(text.slice(r[0], r[1])) + '</mark>'; pos = r[1]; }
+  return out + esc(text.slice(pos));
+}
+function drawDlg(){
+  const d = S.docs.find(x => x.id === DLG.id); if (!d) { closeDlg(); return; }
+  prep(d); const i = DLG.list.indexOf(d.id);
+  const body = DLG.edit ?
+    '<div class="grid3"><label>Participant ID<input id="dPid" value="' + esc(d.pid) + '"></label><label>Group' + groupSelect('dGroup', d.group || S.groups[0]) + '</label><label>Item<input id="dItem" value="' + esc(d.item) + '"></label>' +
+    '<label>Language<select id="dLang"><option value="">Detect automatically (' + esc(d._lang) + ')</option>' + LANGS.slice(0, 4).map(l => '<option' + (d.lang === l ? ' selected' : '') + '>' + l + '</option>').join('') + '</select></label>' +
+    '<label>Mode<select id="dMode">' + MODES.map(m => '<option' + (d.mode === m ? ' selected' : '') + '>' + m + '</option>').join('') + '</select></label></div><label class="block">Text<textarea id="dText" rows="12">' + esc(d.text) + '</textarea></label>'
+    : '<div class="doctext">' + highlightDoc(d) + '</div>';
+  $('#dlg').innerHTML = '<div class="dlg-head"><div><h3>' + esc(d.pid || 'Response') + '</h3><p class="muted">' + esc((d.group || 'Ungrouped') + ', ' + (d.item || 'no item') + ', ' + langOf(d) + ', ' + d.mode + ', ' + fmt(wordCount(d)) + ' words') + '</p></div><span class="spacer"></span>' +
+    '<button data-dlg="code">Code this response</button><button data-dlg="prev"' + (i <= 0 ? ' disabled' : '') + '>Previous</button><button data-dlg="next"' + (i < 0 || i >= DLG.list.length - 1 ? ' disabled' : '') + '>Next</button><button data-dlg="close">Close</button></div>' +
+    '<div class="dlg-body">' + body + '</div><div class="dlg-foot">' +
+    (DLG.edit ? '<button class="primary" data-dlg="save">Save changes</button><button data-dlg="cancel">Cancel</button><span class="spacer"></span><button class="danger" data-dlg="delete">Delete response</button>' : '<button data-dlg="edit">Edit response</button>') + '</div>';
+}
+function dlgClick(e){
+  const b = e.target.closest('[data-dlg]'); if (!b) return;
+  const act = b.getAttribute('data-dlg'), i = DLG.list.indexOf(DLG.id);
+  if (act === 'close') closeDlg();
+  else if (act === 'code') { S.ui.code.doc = DLG.id; S.ui.code.seg = ''; PENDING = null; closeDlg(); go('code'); }
+  else if (act === 'prev' && i > 0) { DLG.id = DLG.list[i - 1]; DLG.edit = false; drawDlg(); }
+  else if (act === 'next' && i < DLG.list.length - 1) { DLG.id = DLG.list[i + 1]; DLG.edit = false; drawDlg(); }
+  else if (act === 'edit') { DLG.edit = true; drawDlg(); }
+  else if (act === 'cancel') { DLG.edit = false; drawDlg(); }
+  else if (act === 'save') {
+    const d = S.docs.find(x => x.id === DLG.id); if (!d) return;
+    const text = $('#dText').value;
+    if (!text.trim()) { toast('A response needs some text. Use Delete response to remove it.'); return; }
+    d.pid = $('#dPid').value.trim(); d.group = groupValue($('#dGroup')); d.item = $('#dItem').value.trim(); d.lang = $('#dLang').value; d.mode = $('#dMode').value; d.text = text;
+    DLG.edit = false; changed(); drawDlg(); toast('Saved changes');
+  } else if (act === 'delete') {
+    ask('Delete this response? This cannot be undone.', {ok:'Delete response', danger:true}).then(ok => { if (!ok) return;
+      S.docs = S.docs.filter(x => x.id !== DLG.id); DLG.list = DLG.list.filter(x => x !== DLG.id); closeDlg(); changed(); toast('Deleted the response'); });
+  }
+}
+function groupValue(sel){ const v = sel ? sel.value : ''; return v === '__new' ? (S.groups[0] || '') : v; }
+
+/* ================= in-page confirmations ================= */
+// Browser pop-ups (confirm/prompt) are silently blocked in many in-app previews and phone viewers,
+// so every confirmation is drawn inside the page instead.
+function ask(message, o){
+  o = o || {};
+  const wantsText = o.input !== undefined;
+  return new Promise(resolve => {
+    const dlg = $('#ask');
+    dlg.innerHTML = '<form class="ask"><p class="ask-msg">' + esc(message).replace(/\n/g, '<br>') + '</p>' +
+      (wantsText ? '<input id="askInput" value="' + esc(o.input) + '" aria-label="' + esc(o.label || message) + '" autocomplete="off">' : '') +
+      '<div class="actions"><button type="button" data-ask="cancel">' + esc(o.cancel || 'Cancel') + '</button><button type="submit" class="' + (o.danger ? 'dangerfill' : 'primary') + '">' + esc(o.ok || 'OK') + '</button></div></form>';
+    let done = false;
+    const finish = v => { if (done) return; done = true; try { if (dlg.close) dlg.close(); else dlg.removeAttribute('open'); } catch (e) { dlg.removeAttribute('open'); } resolve(v); };
+    dlg.querySelector('[data-ask="cancel"]').onclick = () => finish(wantsText ? null : false);
+    dlg.querySelector('form').onsubmit = ev => { ev.preventDefault(); finish(wantsText ? $('#askInput').value : true); };
+    dlg.oncancel = ev => { ev.preventDefault(); finish(wantsText ? null : false); };
+    if (!dlg.open) { try { if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', ''); } catch (e) { dlg.setAttribute('open', ''); } }
+    const f = $('#askInput') || dlg.querySelector('button[type="submit"]'); if (f) { f.focus(); if (f.select) f.select(); }
+  });
+}
+
+/* ================= events ================= */
+function go(view){ S.ui.view = view; document.body.classList.remove('nav-open', 'filters-open'); changed(); window.scrollTo(0, 0); }
+function selected(cls){ return $$('.' + cls + ':checked').map(x => x.getAttribute('data-id') || x.value); }
+function addDocs(list){ for (const d of list) S.docs.push(Object.assign({id:uid(), pid:'', group:'', item:'', lang:'', mode:'online', text:''}, d)); }
+
+function onClick(e){
+  const cs = e.target.closest && e.target.closest('.cseg');
+  if (cs && S.ui.view === 'code') { const sel = window.getSelection ? window.getSelection() : null; if (!sel || sel.isCollapsed) { S.ui.code.seg = cs.getAttribute('data-segs').split(' ')[0]; PENDING = null; changed(); return; } }
+  const t = e.target.closest('[data-view],[data-sub],[data-open],[data-kwic],[data-act]');
+  if (!t) return;
+  if (t.hasAttribute('data-view')) { go(t.getAttribute('data-view')); return; }
+  if (t.hasAttribute('data-sub')) { S.ui.sub = t.getAttribute('data-sub'); changed(); return; }
+  if (t.closest('#nav')) document.body.classList.remove('nav-open');
+  if (t.hasAttribute('data-kwic')) { S.ui.kwic.q = t.getAttribute('data-kwic'); S.ui.kwic.near = t.getAttribute('data-near') || ''; S.ui.kwic.regex = false; S.ui.kwic.limit = 300; go('kwic'); return; }
+  if (t.hasAttribute('data-open')) { openDoc(t.getAttribute('data-open'), t.getAttribute('data-hl') || '', t.getAttribute('data-near') || ''); return; }
+  const act = t.getAttribute('data-act'), u = S.ui;
+  switch (act) {
+    case 'menu-toggle': document.body.classList.remove('filters-open'); document.body.classList.toggle('nav-open'); syncOverlay(); return;
+    case 'flt-toggle': document.body.classList.remove('nav-open'); document.body.classList.toggle('filters-open'); syncOverlay(); return;
+    case 'overlay-close': document.body.classList.remove('nav-open', 'filters-open'); syncOverlay(); return;
+    case 'head-toggle': t.classList.toggle('open'); return;
+    case 'cd-applyone': applyCodes([t.getAttribute('data-id')]); break;
+    case 'proj-save': download('vaakhu-project-' + today() + '.json', serialize(), 'application/json'); toast('Project saved as a file'); break;
+    case 'proj-open': $('#openFile').click(); break;
+    case 'proj-new': {
+      const reset = () => { S = freshState(); rebuildStop(); CSV = null; SUGG = null; PENDING = null; document.body.classList.remove('nav-open', 'filters-open'); changed(); persist(); window.scrollTo(0, 0); toast('Started a new, empty project'); };
+      const has = S.docs.length || S.codes.length || S.memos.length || S.lexicons.length;
+      if (!has) { reset(); break; }
+      ask('Delete everything in this project and start a new one? This removes all responses, codes, memos and word lists from this browser. Use Save project first if you want a copy.', {ok:'Delete and start new', danger:true}).then(ok => { if (ok) reset(); });
+      break;
+    }
+    case 'flt-clear': u.f = {group:'', item:'', lang:'', mode:''}; changed(); break;
+    case 'csv-reset': CSV = null; changed(); break;
+    case 'csv-add': {
+      const list = [];
+      CSV.rows.forEach((r, ri) => {
+        for (const c of CSV.textCols) {
+          const v = (r[c] || '').trim(); if (!v) continue;
+          const pid = CSV.idCol !== null && CSV.idCol !== undefined ? (r[CSV.idCol] || '').trim() || ('Row ' + (ri + 1)) : ('Row ' + (ri + 1));
+          const group = CSV.gMode === 'col' && CSV.gCol !== null ? ((r[CSV.gCol] || '').trim() || 'Ungrouped') : CSV.gFixed;
+          const head0 = CSV.headers[c] || ('Column ' + (c + 1)); list.push({pid, group, item:CSV.iMode === 'col' && CSV.iCol !== null && CSV.iCol !== undefined ? ((r[CSV.iCol] || '').trim() || head0) : head0, mode:CSV.mode, text:v});
+        }
+      });
+      addDocs(list); CSV = null; changed(); toast('Added ' + list.length + ' responses'); break;
+    }
+    case 'type-add': addTyped(); break;
+    case 'sample-load': {
+      if (S.docs.some(d => /^Sample \d+$/.test(d.pid))) { toast('The sample responses are already loaded'); return; }
+      addDocs(SAMPLE.map(s => ({pid:s[0], group:s[1], item:s[2], mode:s[3], text:s[4]})));
+      if (!S.lexicons.length) S.lexicons = STARTER_LISTS.map((x, i) => ({name:x.name, color:PALETTE[i % PALETTE.length], terms:x.terms}));
+      sampleCodebook();
+      changed(); toast('Loaded 12 sample responses with starter word lists and a sample codebook'); break;
+    }
+    case 'sample-remove': S.docs = S.docs.filter(d => !/^Sample \d+$/.test(d.pid)); changed(); toast('Removed the sample responses'); break;
+    case 'data-more': u.dataLimit = 1e9; changed(); break;
+    case 'bulk-del': { const ids = selected('sel'); if (!ids.length) { toast('Tick some responses first'); return; } ask('Delete ' + ids.length + ' responses? This cannot be undone.', {ok:'Delete ' + ids.length, danger:true}).then(ok => { if (!ok) return; S.docs = S.docs.filter(d => ids.indexOf(d.id) < 0); changed(); toast('Deleted ' + ids.length + ' responses'); }); break; }
+    case 'bulk-group': { const ids = selected('sel'); if (!ids.length) { toast('Tick some responses first'); return; } ask('Group for the ' + ids.length + ' selected responses:', {input:S.groups[0] || '', ok:'Set group'}).then(g => { if (!g || !g.trim()) return; S.docs.forEach(d => { if (ids.indexOf(d.id) >= 0) d.group = g.trim(); }); changed(); toast('Updated ' + ids.length + ' responses'); }); break; }
+    case 'bulk-item': { const ids = selected('sel'); if (!ids.length) { toast('Tick some responses first'); return; } ask('Item for the ' + ids.length + ' selected responses:', {input:'', ok:'Set item'}).then(it => { if (it === null) return; S.docs.forEach(d => { if (ids.indexOf(d.id) >= 0) d.item = it.trim(); }); changed(); toast('Updated ' + ids.length + ' responses'); }); break; }
+    case 'ov-export': {
+      const docs = filtered(), gs = groupsIn(docs), rows = gs.map(g => groupStats(docs.filter(d => (d.group || 'Ungrouped') === g), g)).concat([groupStats(docs, 'All shown')]);
+      exportCSV('overview.csv', ['Group','Responses','Words','Unique words','Words per response','Type-token ratio','STTR (100)'], rows.map(r => [r.label, r.docs, r.words, r.types, r.mean.toFixed(2), r.ttr.toFixed(4), r.sttr === null ? '' : r.sttr.toFixed(4)])); break;
+    }
+    case 'fr-more': u.freq.top += 500; changed(); break;
+    case 'fr-export': {
+      const docs = filtered(), n = +u.freq.n || 1, tot = totals(docs), gs = groupsIn(docs), q = normalizeText(u.freq.q).toLowerCase().trim();
+      const rows = freqTable(docs, n).filter(r => r.f >= (+u.freq.min || 1) && (!q || r.k.indexOf(q) >= 0));
+      exportCSV('word-frequency.csv', ['Rank', n === 1 ? 'Word' : 'Phrase', 'Count', 'Per 1000 words', 'Responses', 'Grouped forms'].concat(gs.map(g => g + ' count'), gs.map(g => g + ' per 1000')),
+        rows.map((r, i) => [i + 1, r.k, r.f, (tot.N ? r.f / tot.N * 1000 : 0).toFixed(3), r.df, n === 1 && S.ui.groupOn ? formsOf(r.k).join(' ') : ''].concat(gs.map(g => (r.by && r.by[g]) || 0), gs.map(g => (tot.g[g] ? ((r.by && r.by[g]) || 0) / tot.g[g] * 1000 : 0).toFixed(3))))); break;
+    }
+    case 'fr-merge': { const sel = selected('frsel'); if (sel.length < 2) { toast('Tick at least two words to group'); return; } ask('Count these as one word under which headword?\n' + sel.join(', '), {input:sel.slice().sort((a, b) => cpLen(a) - cpLen(b))[0], ok:'Group'}).then(h => { if (!h || !h.trim()) return; const n = mergeForms(h, sel); SUGG = null; changed(); toast('Grouped ' + n + ' forms under ' + h.trim()); }); break; }
+    case 'fr-lex': {
+      const sel = selected('frsel'); if (!sel.length) { toast('Tick some words first'); return; }
+      if (!S.lexicons.length) S.lexicons.push({name:'Selected words', color:PALETTE[0], terms:''});
+      const lx = S.lexicons[Math.min(u.lex.sel, S.lexicons.length - 1)], have = new Set(lexTerms(lx).map(x => x.t));
+      lx.terms = (lx.terms ? lx.terms.replace(/\s+$/, '') + '\n' : '') + sel.filter(w => !have.has(w)).join('\n');
+      changed(); toast('Added ' + sel.length + ' words to ' + lx.name); break;
+    }
+    case 'fr-cooc': { const sel = selected('frsel'); if (sel.length < 2) { toast('Tick at least two words'); return; } u.cooc.terms = sel.slice(0, 20).join('\n'); go('cooc'); break; }
+    case 'kwic-run': u.kwic.q = $('#kwQ').value; u.kwic.near = $('#kwNear').value; u.kwic.span = +$('#kwSpan').value; u.kwic.sort = $('#kwSort').value; u.kwic.nearSpan = +$('#kwNearSpan').value; u.kwic.regex = $('#kwRegex').checked; u.kwic.limit = 300; changed(); break;
+    case 'kwic-more': u.kwic.limit = (u.kwic.limit || 300) + 500; changed(); break;
+    case 'kwic-export': {
+      const lines = kwic(filtered(), u.kwic);
+      exportCSV('concordance.csv', ['Participant ID','Group','Item','Language','Mode','Left context','Match','Right context'], lines.map(l => [l.d.pid, l.d.group, l.d.item, langOf(l.d), l.d.mode, l.left, l.node, l.right])); break;
+    }
+    case 'colloc-run': u.colloc.q = $('#coQ').value; u.colloc.L = +$('#coL').value; u.colloc.R = +$('#coR').value; u.colloc.min = +$('#coMin').value || 1; u.colloc.stat = $('#coStat').value; changed(); break;
+    case 'colloc-export': {
+      const res = collocates(filtered(), u.colloc); const st = u.colloc.stat;
+      exportCSV('collocates.csv', ['Collocate','Together','Left','Right','Total count','Expected','logDice','MI','T-score','Log-likelihood'], res.rows.sort((a, b) => b[st] - a[st]).map(r => [r.k, r.o, r.l, r.r, r.fc, r.E.toFixed(3), r.ld.toFixed(3), r.mi.toFixed(3), r.t.toFixed(3), r.ll.toFixed(3)])); break;
+    }
+    case 'key-export': {
+      const o = u.key, base = filtered(o.dim), tD = base.filter(d => dimOf(d, o.dim) === o.target), rD = base.filter(d => dimOf(d, o.dim) !== o.target && (!o.ref || dimOf(d, o.dim) === o.ref));
+      const res = keyness(tD, rD);
+      exportCSV('keyness.csv', ['Word','Target count','Target per 1000','Reference count','Reference per 1000','Log ratio','Log-likelihood','Direction'], res.rows.sort((a, b) => b.ll - a.ll).map(r => [r.k, r.a, r.pa.toFixed(3), r.b, r.pb.toFixed(3), r.lr.toFixed(3), r.ll.toFixed(3), r.over ? 'More in target' : 'Less in target'])); break;
+    }
+    case 'lex-sel': u.lex.sel = +t.getAttribute('data-i'); changed(); break;
+    case 'lex-new': S.lexicons.push({name:'New list ' + (S.lexicons.length + 1), color:PALETTE[S.lexicons.length % PALETTE.length], terms:''}); u.lex.sel = S.lexicons.length - 1; changed(); break;
+    case 'lex-starter': { const have = new Set(S.lexicons.map(x => x.name)); let n = 0; STARTER_LISTS.forEach(x => { if (!have.has(x.name)) { S.lexicons.push({name:x.name, color:PALETTE[S.lexicons.length % PALETTE.length], terms:x.terms}); n++; } }); changed(); toast(n ? 'Added ' + n + ' starter lists' : 'The starter lists are already here'); break; }
+    case 'lex-save': { const lx = S.lexicons[u.lex.sel]; if (!lx) return; lx.name = $('#lxName').value.trim() || lx.name; lx.color = $('#lxColor').value; lx.terms = $('#lxTerms').value; changed(); toast('Saved ' + lx.name); break; }
+    case 'lex-del': { const lx = S.lexicons[u.lex.sel]; if (!lx) return; ask('Delete the list "' + lx.name + '"?', {ok:'Delete list', danger:true}).then(ok => { if (!ok) return; S.lexicons = S.lexicons.filter(x => x !== lx); u.lex.sel = 0; changed(); toast('Deleted ' + lx.name); }); break; }
+    case 'lex-kwic': { const lx = S.lexicons[u.lex.sel]; if (!lx) return; u.kwic.q = lexTerms(lx).map(x => x.t).join(' | '); u.kwic.near = ''; u.kwic.regex = false; go('kwic'); break; }
+    case 'lex-export': download('vaakhu-word-lists.json', JSON.stringify(S.lexicons, null, 2), 'application/json'); toast('Exported ' + S.lexicons.length + ' lists'); break;
+    case 'lex-export-matrix': {
+      const docs = filtered(), gs = groupsIn(docs), rows = [];
+      S.lexicons.forEach(lx => { const c = lexCount(docs, lx); gs.concat(['All shown']).forEach(g => { const r = g === 'All shown' ? {hits:c.total, docsWith:c.docsWith, docs:c.docs, words:c.words} : (c.byG[g] || {hits:0, docsWith:0, docs:0, words:0}); rows.push([lx.name, g, r.hits, r.words, (r.words ? r.hits / r.words * 1000 : 0).toFixed(3), r.docsWith, r.docs, (r.docs ? r.docsWith / r.docs * 100 : 0).toFixed(1)]); }); });
+      exportCSV('word-list-counts.csv', ['List','Group','Hits','Words','Per 1000 words','Responses using list','Responses','% of responses'], rows); break;
+    }
+    case 'lex-export-terms': {
+      const lx = S.lexicons[u.lex.sel]; if (!lx) return; const docs = filtered(), gs = groupsIn(docs), c = lexCount(docs, lx);
+      exportCSV('word-list-terms.csv', ['List','Term','Hits'].concat(gs), lexTerms(lx).map(x => { const v = c.terms.get(x.t) || {n:0, byG:{}}; return [lx.name, x.t, v.n].concat(gs.map(g => v.byG[g] || 0)); })); break;
+    }
+    case 'disp-run': u.disp.q = $('#dsQ').value; changed(); break;
+    case 'cooc-run': u.cooc.terms = $('#ccTerms').value; u.cooc.unit = $('#ccUnit').value; u.cooc.measure = $('#ccMeasure').value; changed(); break;
+    case 'cooc-top': { const rows = freqTable(filtered(), 1).slice(0, 10); if (rows.length < 2) { toast('Not enough words yet'); return; } u.cooc.terms = rows.map(r => r.k).join('\n'); changed(); break; }
+    case 'cooc-export': {
+      const terms = u.cooc.terms.split(/\n+/).map(s => s.trim()).filter(Boolean).slice(0, 20), res = cooc(filtered(), terms, u.cooc.unit);
+      exportCSV('co-occurrence.csv', [''].concat(terms), terms.map((x, a) => [x].concat(res.M[a]))); break;
+    }
+    case 'sg-find': rebuildStop(); SUGG = suggestForms(); changed(); break;
+    case 'sg-close': SUGG = null; changed(); break;
+    case 'sg-skip': SUGG.splice(+t.getAttribute('data-i'), 1); changed(); break;
+    case 'sg-merge': { const i = +t.getAttribute('data-i'); const r = sgRead(i); if (r.forms.filter(f => f !== r.head).length < 1) { toast('Tick at least two forms'); return; } mergeForms(r.head, r.forms); SUGG.splice(i, 1); changed(); toast('Grouped under ' + r.head); break; }
+    case 'sg-all': { let n = 0; const shown = SUGG.slice(0, 150).map((g, i) => sgRead(i)); shown.forEach(r => { if (r.forms.length >= 2) { mergeForms(r.head, r.forms); n++; } }); SUGG = suggestForms(); changed(); toast('Grouped ' + n + ' sets of forms'); break; }
+    case 'fm-add': { const forms = splitWords($('#fmForms').value), h = $('#fmHead').value.trim(); if (!h || !forms.length) { toast('Enter the forms and a headword'); return; } const n = mergeForms(h, forms); changed(); toast('Grouped ' + n + ' forms under ' + h); break; }
+    case 'fm-un': delete S.lemmaMap[t.getAttribute('data-form')]; changed(); break;
+    case 'fm-export': { const inv = {}; for (const k in S.lemmaMap) (inv[S.lemmaMap[k]] = inv[S.lemmaMap[k]] || []).push(k); exportCSV('word-forms.csv', ['Headword','Forms'], Object.keys(inv).sort().map(h => [h, inv[h].join(' ')])); break; }
+    case 'cd-doc': S.ui.code.doc = t.getAttribute('data-id'); S.ui.code.seg = ''; PENDING = null; if (S.ui.view !== 'code') go('code'); else changed(); break;
+    case 'cd-next': case 'cd-prev': { const docs = filtered(), i = docs.findIndex(d => d.id === S.ui.code.doc), j = act === 'cd-next' ? i + 1 : i - 1; if (docs[j]) { S.ui.code.doc = docs[j].id; S.ui.code.seg = ''; PENDING = null; changed(); } break; }
+    case 'cd-mode': S.ui.code.mode = t.getAttribute('data-mode'); PENDING = null; changed(); break;
+    case 'cd-apply': applyCodes(S.ui.code.active.slice()); break;
+    case 'cd-clearsel': PENDING = null; try { window.getSelection().removeAllRanges(); } catch (err) {} drawSelBox(); break;
+    case 'cd-newcode': {
+      const inp = $('#cdNew'), name = inp ? inp.value.trim() : ''; if (!name) { toast('Type a name for the new code'); return; }
+      let c = S.codes.find(x => x.name.toLowerCase() === name.toLowerCase()); if (!c) c = newCode(name, '');
+      if (S.ui.code.active.indexOf(c.id) < 0) S.ui.code.active.push(c.id);
+      if (PENDING) applyCodes([c.id]); else { changed(); toast('Added the code ' + c.name); }
+      break;
+    }
+    case 'seg-pick': S.ui.code.seg = t.getAttribute('data-id'); PENDING = null; changed(); break;
+    case 'seg-ess': { const sg = S.segs.find(x => x.id === t.getAttribute('data-id')); if (sg) { sg.ess = !sg.ess; changed(); } break; }
+    case 'seg-del': { const id = t.getAttribute('data-id'); S.segs = S.segs.filter(x => x.id !== id); changed(); toast('Removed the coded passage'); break; }
+    case 'seg-uncode': { const sg = S.segs.find(x => x.id === t.getAttribute('data-id')); if (sg) { sg.codes = sg.codes.filter(c => c !== t.getAttribute('data-code')); changed(); } break; }
+    case 'seg-addcodes': { const sg = S.segs.find(x => x.id === t.getAttribute('data-id')); if (sg) applyCodes(S.ui.code.active.slice(), {doc:sg.doc, s:sg.s, e:sg.e}); break; }
+    case 'line-apply': applyCodes(S.ui.code.active.slice(), {doc:S.ui.code.doc, s:+t.getAttribute('data-s'), e:+t.getAttribute('data-e')}); break;
+    case 'cb-sel': S.ui.cb.sel = t.getAttribute('data-id'); changed(); break;
+    case 'cb-new': { const c = newCode('New code ' + (S.codes.length + 1), ''); S.ui.cb.sel = c.id; changed(); const el = $('#cbName'); if (el) { el.focus(); el.select(); } break; }
+    case 'cb-child': { const cur = S.codes.find(x => x.id === S.ui.cb.sel); if (!cur) return; const c = newCode('New code ' + (S.codes.length + 1), cur.parent || cur.id); S.ui.cb.sel = c.id; changed(); const el = $('#cbName'); if (el) { el.focus(); el.select(); } break; }
+    case 'cb-save': {
+      const c = S.codes.find(x => x.id === S.ui.cb.sel); if (!c) return;
+      c.name = $('#cbName').value.trim() || c.name; c.color = $('#cbColor').value; c.def = $('#cbDef').value.trim(); c.incl = $('#cbIncl').value.trim(); c.excl = $('#cbExcl').value.trim(); c.ex = $('#cbEx').value.trim();
+      const par = $('#cbParent'); if (par && !par.disabled) c.parent = par.value;
+      changed(); toast('Saved ' + c.name); break;
+    }
+    case 'cb-example': { const c = S.codes.find(x => x.id === S.ui.cb.sel), sg = S.segs.find(x => x.id === t.getAttribute('data-seg')); if (c && sg) { c.ex = sg.q; changed(); } break; }
+    case 'cb-merge': {
+      const c = S.codes.find(x => x.id === S.ui.cb.sel), to = S.codes.find(x => x.id === $('#cbMergeTo').value); if (!c || !to) return;
+      ask('Merge "' + c.name + '" into "' + to.name + '"? Its passages move to "' + to.name + '" and the code is removed.', {ok:'Merge'}).then(ok => { if (!ok) return;
+        for (const sg of S.segs) if (sg.codes.indexOf(c.id) >= 0) { sg.codes = sg.codes.filter(x => x !== c.id); if (sg.codes.indexOf(to.id) < 0) sg.codes.push(to.id); }
+        for (const x of S.codes) if (x.parent === c.id) x.parent = to.parent ? '' : to.id;
+        S.codes = S.codes.filter(x => x.id !== c.id); S.ui.cb.sel = to.id; changed(); toast('Merged into ' + to.name); });
+      break;
+    }
+    case 'cb-del': {
+      const c = S.codes.find(x => x.id === S.ui.cb.sel); if (!c) return;
+      const n = S.segs.filter(x => x.codes.indexOf(c.id) >= 0).length;
+      ask('Delete "' + c.name + '"?' + (n ? ' It is on ' + n + ' passages; passages left without a code are removed.' : '') + (S.codes.some(x => x.parent === c.id) ? ' Codes under it move to the top level.' : ''), {ok:'Delete code', danger:true}).then(ok => { if (!ok) return;
+        S.codes = S.codes.filter(x => x.id !== c.id); S.ui.cb.sel = ''; changed(); toast('Deleted ' + c.name); });
+      break;
+    }
+    case 'cb-export': { const cm = codeMap(), st = codeStats(); exportCSV('codebook.csv', ['Name','Theme','Definition','Include when','Exclude when','Example','Passages','Responses'], codeOrder().map(o => [o.c.name, o.c.parent ? (cm.get(o.c.parent) || {}).name : '', o.c.def, o.c.incl, o.c.excl, o.c.ex, st.segN[o.c.id] || 0, st.docN[o.c.id] ? st.docN[o.c.id].size : 0])); break; }
+    case 'rt-open': { const sg = S.segs.find(x => x.id === t.getAttribute('data-id')); if (!sg) return; S.ui.code.doc = sg.doc; S.ui.code.seg = sg.id; S.ui.code.mode = 'read'; PENDING = null; go('code'); break; }
+    case 'rt-export': {
+      const docs = filtered(), dm = new Map(docs.map(d => [d.id, d])), cm = codeMap(); anchorAll();
+      exportCSV('coded-segments.csv', ['Participant ID','Group','Item','Language','Mode','Codes','Themes','Passage','Essential','Memo','Coded at'], retRows(docs).map(sg => { const d = dm.get(sg.doc), cs = sg.codes.map(id => cm.get(id)).filter(Boolean); return [d.pid, d.group, d.item, langOf(d), d.mode, cs.map(c => c.name).join('; '), Array.from(new Set(cs.map(c => c.parent ? (cm.get(c.parent) || c).name : c.name))).join('; '), sg.q, sg.ess ? 'yes' : '', sg.memo, sg.at]; })); break;
+    }
+    case 'ca-export': {
+      anchorAll(); const T = codeTable(filtered()), cm = codeMap();
+      exportCSV('code-analysis.csv', ['Code','Theme','Level'].concat([].concat.apply([], T.gs.map(g => [g + ' passages', g + ' responses', g + ' % of responses']))).concat(['All passages','All responses','All % of responses']),
+        T.rows.map(x => [x.o.c.name, x.o.child ? (cm.get(x.o.c.parent) || {}).name : '', x.o.child ? 'Code' : 'Theme'].concat([].concat.apply([], T.gs.map(g => { const r = x.r[g] || {segs:0, docs:new Set()}; return [r.segs, r.docs.size, (T.nDocs[g] ? r.docs.size / T.nDocs[g] * 100 : 0).toFixed(1)]; }))).concat([x.all.segs, x.all.docs.size, (T.nAll ? x.all.docs.size / T.nAll * 100 : 0).toFixed(1)]))); break;
+    }
+    case 'ca-export-co': { anchorAll(); const co = coMatrix(codeTable(filtered()), S.ui.ca.unit); exportCSV('code-co-occurrence.csv', [''].concat(co.codes.map(c => c.name)), co.codes.map((c, a) => [c.name].concat(co.M[a]))); break; }
+    case 'memo-new': { const m = {id:'m' + uid(), title:'Memo ' + today(), text:'', at:new Date().toISOString()}; S.memos.push(m); S.ui.memo.sel = m.id; changed(); const el = $('#mmText'); if (el) el.focus(); break; }
+    case 'memo-sel': S.ui.memo.sel = t.getAttribute('data-id'); changed(); break;
+    case 'memo-del': { const m = S.memos.find(x => x.id === S.ui.memo.sel); if (!m) return; ask('Delete the memo "' + m.title + '"?', {ok:'Delete memo', danger:true}).then(ok => { if (!ok) return; S.memos = S.memos.filter(x => x.id !== m.id); S.ui.memo.sel = ''; changed(); toast('Deleted the memo'); }); break; }
+    case 'memo-export': exportCSV('memos.csv', ['Title','Started','Memo'], S.memos.map(m => [m.title, m.at, m.text])); break;
+    case 'whole-export': exportCSV('wholistic-statements.csv', ['Participant ID','Group','Item','Wholistic statement'], S.docs.filter(d => S.wholistic[d.id]).map(d => [d.pid, d.group, d.item, S.wholistic[d.id]])); break;
+    case 'lines-export': { const rows = []; for (const d of S.docs) for (const n of (S.lineNotes[d.id] || [])) if (n.note) rows.push([d.pid, d.group, n.q, n.note]); exportCSV('line-notes.csv', ['Participant ID','Group','Line','Note'], rows); break; }
+    case 'st-save': S.stop.en = splitWords($('#stEn').value); S.stop.ml = splitWords($('#stMl').value); S.stop.mg = splitWords($('#stMg').value); rebuildStop(); changed(); toast('Saved stopword lists'); break;
+    case 'st-reset': ask('Replace your stopword lists with the defaults?', {ok:'Restore defaults'}).then(ok => { if (!ok) return; S.stop = {en:EN_STOP.slice(), ml:ML_STOP.slice(), mg:MG_STOP.slice()}; rebuildStop(); changed(); toast('Restored the default stopwords'); }); break;
+  }
+}
+function syncOverlay(){
+  const b = document.body;
+  const mb = $('[data-act="menu-toggle"]'), fb = $('#fltBtn');
+  if (mb) mb.setAttribute('aria-expanded', b.classList.contains('nav-open'));
+  if (fb) fb.setAttribute('aria-expanded', b.classList.contains('filters-open'));
+}
+function sgRead(i){
+  const sel = $('[data-sghead="' + i + '"]');
+  const forms = $$('[data-sgform="' + i + '"]').filter(x => x.checked).map(x => x.value);
+  const custom = $('[data-sgcustom="' + i + '"]');
+  let head = custom && custom.value.trim() ? custom.value.trim() : (sel ? sel.value : (SUGG[i] && SUGG[i].head));
+  if (forms.indexOf(head) < 0 && forms.length && !(custom && custom.value.trim())) forms.push(head);
+  return {head, forms};
+}
+function addTyped(){
+  const text = $('#tText').value;
+  if (!text.trim()) { toast('Type or paste a response first'); $('#tText').focus(); return; }
+  const draft = {pid:$('#tPid').value.trim(), group:groupValue($('#tGroup')), item:$('#tItem').value.trim(), lang:$('#tLang').value, mode:$('#tMode').value, split:$('#tSplit').checked};
+  const parts = draft.split ? text.split(/\n\s*\n/).map(s => s.trim()).filter(Boolean) : [text.trim()];
+  addDocs(parts.map(p => ({pid:draft.pid, group:draft.group, item:draft.item, lang:draft.lang, mode:draft.mode, text:p})));
+  S.ui.typeDraft = draft; changed();
+  const ta = $('#tText'); if (ta) { ta.value = ''; ta.focus(); }
+  toast('Added ' + parts.length + (parts.length === 1 ? ' response' : ' responses'));
+}
+function onChange(e){
+  const t = e.target, id = t.id, u = S.ui;
+  if (t.hasAttribute && t.hasAttribute('data-groupsel') && t.value === '__new') {
+    t.value = S.groups[0] || '';
+    ask('Name of the new group:', {input:'', ok:'Add group'}).then(g => {
+      if (!g || !g.trim()) return;
+      g = g.trim(); if (S.groups.indexOf(g) < 0) S.groups.push(g);
+      const o = document.createElement('option'); o.textContent = g; t.insertBefore(o, t.lastElementChild); t.value = g;
+      if (t.id === 'mapGFixed' && CSV) CSV.gFixed = g;
+      persistSoon();
+    });
+    if (id === 'mapGFixed' && CSV) CSV.gFixed = t.value;
+    return;
+  }
+  const map = {'flt-group':['f','group'], 'flt-item':['f','item'], 'flt-lang':['f','lang'], 'flt-mode':['f','mode']};
+  if (map[id]) { u.f[map[id][1]] = t.value; changed(); return; }
+  switch (id) {
+    case 'flt-stop': u.stopOn = t.checked; changed(); return;
+    case 'flt-forms': u.groupOn = t.checked; changed(); return;
+    case 'openFile': if (t.files[0]) readFile(t.files[0]).then(txt => { try { S = hydrate(JSON.parse(txt)); rebuildStop(); CSV = null; SUGG = null; changed(); toast('Opened ' + t.files[0].name); } catch (err) { toast('That file is not a Vaakhu project.'); } t.value = ''; }); return;
+    case 'csvFile': if (t.files[0]) { const f = t.files[0]; readFile(f).then(txt => { setupCSV(f.name, txt); changed(); }); } return;
+    case 'txtFiles': {
+      const files = Array.from(t.files || []); if (!files.length) return;
+      const group = groupValue($('#fiGroup')), item = $('#fiItem').value.trim() || 'Interview', mode = $('#fiMode').value;
+      Promise.all(files.map(f => readFile(f).then(txt => ({pid:f.name.replace(/\.[^.]+$/, ''), group, item, mode, text:txt})))).then(list => { const ok = list.filter(x => x.text.trim()); addDocs(ok); changed(); toast('Added ' + ok.length + ' transcripts'); });
+      return;
+    }
+    case 'lexFile': if (t.files[0]) readFile(t.files[0]).then(txt => { try { const arr = JSON.parse(txt); if (!Array.isArray(arr)) throw new Error(); arr.forEach(x => S.lexicons.push({name:String(x.name || 'Imported list'), color:x.color || PALETTE[S.lexicons.length % PALETTE.length], terms:String(x.terms || '')})); changed(); toast('Imported ' + arr.length + ' lists'); } catch (err) { toast('That file does not contain word lists.'); } }); return;
+    case 'mapId': CSV.idCol = t.value === '' ? null : +t.value; return;
+    case 'mapGMode': CSV.gMode = t.value; changed(); return;
+    case 'mapGCol': CSV.gCol = t.value === '' ? null : +t.value; return;
+    case 'mapGFixed': CSV.gFixed = t.value; return;
+    case 'mapMode': CSV.mode = t.value; return;
+    case 'mapIMode': CSV.iMode = t.value; changed(); return;
+    case 'mapICol': CSV.iCol = t.value === '' ? null : +t.value; return;
+    case 'selAll': $$('.sel').forEach(x => { x.checked = t.checked; }); return;
+    case 'frN': u.freq.n = +t.value; u.freq.top = 200; changed(); return;
+    case 'frMin': u.freq.min = Math.max(1, +t.value || 1); changed(); return;
+    case 'frShow': u.freq.show = t.value; changed(); return;
+    case 'kwSort': u.kwic.sort = t.value; changed(); return;
+    case 'kwSpan': u.kwic.span = +t.value; changed(); return;
+    case 'kyDim': u.key.dim = t.value; u.key.target = ''; u.key.ref = ''; changed(); return;
+    case 'kyT': u.key.target = t.value; changed(); return;
+    case 'kyRef': u.key.ref = t.value; changed(); return;
+    case 'kyMin': u.key.min = Math.max(1, +t.value || 1); changed(); return;
+    case 'kyP': u.key.p = +t.value; changed(); return;
+    case 'kyShow': u.key.show = t.value; changed(); return;
+    case 'coStat': u.colloc.stat = t.value; changed(); return;
+    case 'lxMeasure': u.lex.measure = t.value; changed(); return;
+    case 'ccMeasure': u.cooc.measure = t.value; changed(); return;
+    case 'setMin': S.settings.minLen = +t.value; changed(); return;
+    case 'setNum': S.settings.numbers = t.checked; changed(); return;
+    case 'rtCode': u.ret.code = t.value; changed(); return;
+    case 'cdPick': u.code.doc = t.value; u.code.seg = ''; PENDING = null; changed(); window.scrollTo(0, 0); return;
+    case 'rtEss': u.ret.ess = t.checked; changed(); return;
+    case 'caMeasure': u.ca.measure = t.value; changed(); return;
+    case 'caUnit': u.ca.unit = t.value; changed(); return;
+    case 'cbFile': if (t.files[0]) readFile(t.files[0]).then(txt => { importCodebook(txt); t.value = ''; }); return;
+  }
+  if (t.hasAttribute && t.hasAttribute('data-active')) {
+    const id2 = t.getAttribute('data-active'), a = u.code.active;
+    if (t.checked) { if (a.indexOf(id2) < 0) a.push(id2); } else u.code.active = a.filter(x => x !== id2);
+    persistSoon(); return;
+  }
+  if (t.hasAttribute && t.hasAttribute('data-col') && CSV) {
+    const c = +t.getAttribute('data-col');
+    if (t.checked) { if (CSV.textCols.indexOf(c) < 0) CSV.textCols.push(c); } else CSV.textCols = CSV.textCols.filter(x => x !== c);
+    const btn = $('[data-act="csv-add"]'); if (btn) { btn.textContent = 'Add ' + fmt(csvCount()) + ' responses'; btn.disabled = !csvCount(); }
+  }
+}
+const rerenderSoon = debounce(() => changed(), 250);
+function onInput(e){
+  const id = e.target.id;
+  if (id === 'dataQ') { S.ui.dataQ = e.target.value; rerenderSoon(); }
+  else if (id === 'frQ') { S.ui.freq.q = e.target.value; rerenderSoon(); }
+  else if (id === 'fmQ') { S.ui.forms.q = e.target.value; rerenderSoon(); }
+  else if (id === 'cdQ') { S.ui.code.q = e.target.value; rerenderSoon(); }
+  else if (id === 'rtQ') { S.ui.ret.q = e.target.value; rerenderSoon(); }
+  else if (id === 'cdWhole') { S.wholistic[S.ui.code.doc] = e.target.value; persistSoon(); }
+  else if (id === 'mmTitle' || id === 'mmText') { const m = S.memos.find(x => x.id === S.ui.memo.sel); if (m) { if (id === 'mmTitle') m.title = e.target.value; else m.text = e.target.value; persistSoon(); } }
+  else if (e.target.hasAttribute && e.target.hasAttribute('data-segmemo')) { const sg = S.segs.find(x => x.id === e.target.getAttribute('data-segmemo')); if (sg) { sg.memo = e.target.value; persistSoon(); } }
+  else if (e.target.hasAttribute && e.target.hasAttribute('data-linenote')) {
+    const did = e.target.getAttribute('data-linenote'), q = e.target.getAttribute('data-q'), list = S.lineNotes[did] || (S.lineNotes[did] = []);
+    const n = list.find(x => x.q === q); if (n) n.note = e.target.value; else list.push({q, note:e.target.value});
+    S.lineNotes[did] = list.filter(x => x.note); persistSoon();
+  }
+}
+function onKey(e){
+  if (e.key === 'Escape' && (document.body.classList.contains('nav-open') || document.body.classList.contains('filters-open'))) { document.body.classList.remove('nav-open', 'filters-open'); syncOverlay(); return; }
+  if (S.ui.view === 'code' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    const tag = (e.target.tagName || '').toLowerCase(), typing = tag === 'input' || tag === 'textarea' || tag === 'select' || e.target.isContentEditable;
+    if (!typing) {
+      if (/^[1-9]$/.test(e.key)) { const o = codeOrder()[+e.key - 1]; if (o && PENDING) { e.preventDefault(); applyCodes([o.c.id]); } return; }
+      if (e.key === ']' || e.key === '[') { const b = $('[data-act="' + (e.key === ']' ? 'cd-next' : 'cd-prev') + '"]'); if (b && !b.disabled) b.click(); return; }
+    }
+  }
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && e.target.id === 'tText') { e.preventDefault(); addTyped(); return; }
+  if (e.key === 'Enter' && e.target.hasAttribute && e.target.hasAttribute('data-enter')) { e.preventDefault(); const b = $('[data-act="' + e.target.getAttribute('data-enter') + '"]'); if (b) b.click(); return; }
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.classList && (e.target.classList.contains('kl') || e.target.classList.contains('ri'))) { e.preventDefault(); e.target.click(); }
+}
+function setupCSV(name, txt){
+  const rows = parseCSV(txt);
+  if (rows.length < 2) { toast('That file has no data rows.'); return; }
+  const headers = rows[0].map(h => h.trim()), data = rows.slice(1), width = Math.max.apply(null, rows.map(r => r.length));
+  while (headers.length < width) headers.push('');
+  const avg = i => { let s = 0, n = 0; for (const r of data) { const v = (r[i] || '').trim(); if (v) { s += v.length; n++; } } return n ? s / n : 0; };
+  const skip = /timestamp|time stamp|e-?mail|phone|mobile|name|age|gender|date|consent|prompt/i;
+  const textCols = headers.map((h, i) => i).filter(i => avg(i) >= 25 && !skip.test(headers[i]));
+  const idCol = headers.findIndex(h => /\b(id|participant|code|serial|respondent no)\b/i.test(h));
+  const gCol = headers.findIndex(h => /group|respondent type|role|assistant|model/i.test(h));
+  CSV = {name, headers, rows:data, idCol:idCol >= 0 ? idCol : null, gMode:gCol >= 0 ? 'col' : 'fixed', gCol:gCol >= 0 ? gCol : null, gFixed:S.groups[0] || 'PWLE', mode:'online', textCols, iMode:'header', iCol:null};
+}
+function parseCSV(text){
+  text = String(text).replace(/^\uFEFF/, '');
+  const first = text.split(/\r?\n/, 1)[0] || '';
+  const count = ch => first.split(ch).length;
+  const delim = count('\t') > count(',') ? '\t' : (count(';') > count(',') ? ';' : ',');
+  const rows = []; let row = [], field = '', inQ = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQ) { if (c === '"') { if (text[i + 1] === '"') { field += '"'; i++; } else inQ = false; } else field += c; }
+    else if (c === '"' && field === '') inQ = true;
+    else if (c === delim) { row.push(field); field = ''; }
+    else if (c === '\n') { row.push(field); rows.push(row); row = []; field = ''; }
+    else if (c !== '\r') field += c;
+  }
+  if (field !== '' || row.length) { row.push(field); rows.push(row); }
+  return rows.filter(r => r.some(v => v.trim() !== ''));
+}
+
+/* ================= start ================= */
+function start(){
+  load();
+  document.addEventListener('click', onClick);
+  document.addEventListener('change', onChange);
+  document.addEventListener('input', onInput);
+  document.addEventListener('keydown', onKey);
+  $('#dlg').addEventListener('click', dlgClick);
+  const cap = () => setTimeout(captureSelection, 0);
+  document.addEventListener('mouseup', cap);
+  if ('onselectionchange' in document) document.addEventListener('selectionchange', debounce(() => { if (isPhone()) captureSelection(); }, 250));
+  let wasPhone = isPhone();
+  window.addEventListener('resize', debounce(() => { const p = isPhone(); if (p !== wasPhone) { wasPhone = p; document.body.classList.remove('nav-open', 'filters-open'); render(); } }, 200)); document.addEventListener('keyup', e => { if (e.shiftKey || e.key === 'Shift') cap(); }); document.addEventListener('touchend', cap);
+  render();
+}
+window.Vaakhu = {state:() => S, normalizeText, tokenize, detectLang, mlKey, enKey, mgKey, parseQuery, findHits, freqTable, kwic, collocates, keyness, lexCount, dispersion, cooc, suggestForms, mergeForms, parseCSV, setupCSV:(n, t) => { setupCSV(n, t); render(); }, prep, render, filtered, groupStats, applyCodes, codeOrder, newCode, setPending:p => { PENDING = p; drawSelBox(); }, importCodebook, anchorAll, codeTable, coMatrix};
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+})();
+</script>
+</body>
+</html>
