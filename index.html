@@ -365,7 +365,7 @@ nav.side .navlabel{font-size:12px;color:var(--muted);padding:12px 12px 2px}
 /* ================= constants ================= */
 const STORE_KEY = 'vakku-project-v1';
 const PALETTE = ['#1F6F61','#3B5BA9','#B07D12','#7A4E9C','#4F7F2A','#A6402B','#2E7D9A','#6B5B3E'];
-const DEFAULT_GROUPS = ['PWLE','Family member','Healthcare provider','Social worker'];
+const DEFAULT_GROUPS = [];
 const LANGS = ['Malayalam','English','Manglish','Mixed','Unknown'];
 const MODES = ['online','paper','transcript'];
 const DIM_LABEL = {group:'Group', lang:'Language', item:'Item', mode:'Mode'};
@@ -550,6 +550,59 @@ function load(){
 }
 function ensureGroups(){ for (const d of S.docs) if (d.group && S.groups.indexOf(d.group) < 0) S.groups.push(d.group); }
 function changed(silent){ ensureGroups(); purge(); persistSoon(); if (!silent) render(); }
+
+/* ================= examples drawn from the loaded data ================= */
+// Help text and placeholders use words from the user's own responses, so the hints fit any study.
+const ML_SIGN = /[\u0D00-\u0D03\u0D3B\u0D3C\u0D3E-\u0D4D\u0D57\u0D62\u0D63\u200C\u200D]/;
+const EX_DEFAULT = {en:['help', 'support', 'learning'], ml:['സഹായം', 'കുടുംബം'], stem:'learn*', mlStem:'പഠി*', forms:['പഠിക്കാൻ', 'പഠിച്ചു', 'പഠിക്കും'], head:'പഠിക്കുക', fromData:false};
+function sharedStem(forms, minLen){
+  const cs = forms.map(f => Array.from(f));
+  let k = 0; while (cs.every(c => k < c.length && c[k] === cs[0][k])) k++;
+  while (k > 0 && (cs.some(c => k < c.length && ML_SIGN.test(c[k])) || cs[0][k - 1] === '\u0D4D' || cs[0][k - 1] === '\u200D')) k--;
+  return k >= minLen ? cs[0].slice(0, k).join('') : '';
+}
+function bestFamily(words, counts, keyFn, minLen){
+  const fam = new Map();
+  for (const w of words) { const k = keyFn(w); if (!k) continue; if (!fam.has(k)) fam.set(k, []); fam.get(k).push(w); }
+  let best = null, bestN = 0;
+  for (const forms of fam.values()) {
+    if (forms.length < 2) continue;
+    const stem = sharedStem(forms, minLen); if (!stem) continue;
+    const n = forms.reduce((a, w) => a + counts.get(w), 0);
+    if (n > bestN) { bestN = n; best = {stem, forms:forms.slice().sort((a, b) => counts.get(b) - counts.get(a))}; }
+  }
+  return best;
+}
+const EX_SKIP = new Set('asked said says used using uses think thought feel felt make made makes gave give gives took take takes came come know knew want wanted need needed tell told like also just really even much many more most very still every always never some other others something anything everything because though actually honestly maybe first last time times thing things people week sometimes mostly only would could should well while after before again into than then them they their there these those where which while what when your yours ours mine have having being been were with from that this'.split(' '));
+let EXC = null;
+function examples(){
+  let len = 0; for (const d of S.docs) len += d.text.length;
+  const key = S.docs.length + ':' + len;
+  if (EXC && EXC.key === key) return EXC.ex;
+  const en = new Map(), ml = new Map();
+  for (const d of S.docs) {
+    prep(d); const manglish = langOf(d) === 'Manglish';
+    for (const t of d._tok) {
+      if (t.sc === 'n' || STOP.has(t.w)) continue;
+      if (t.sc === 'm') { if (cpLen(t.w) >= 3) ml.set(t.w, (ml.get(t.w) || 0) + 1); }
+      else if (!manglish && t.w.length >= 4 && !MG_MARK.has(t.w) && !EX_SKIP.has(t.w) && /^[a-z][a-z'-]*$/.test(t.w)) en.set(t.w, (en.get(t.w) || 0) + 1);
+    }
+  }
+  const top = m => Array.from(m.entries()).sort((a, b) => b[1] - a[1]).map(x => x[0]);
+  const E = top(en), M = top(ml);
+  const ex = Object.assign({}, EX_DEFAULT, {fromData: E.length + M.length > 0});
+  if (E.length) ex.en = E.concat(EX_DEFAULT.en.filter(w => E.indexOf(w) < 0)).slice(0, 3);
+  if (M.length) ex.ml = M.concat(EX_DEFAULT.ml.filter(w => M.indexOf(w) < 0)).slice(0, 2);
+  const ef = bestFamily(E.slice(0, 400), en, w => w.length >= 5 ? w.slice(0, 5) : '', 4);
+  if (ef) ex.stem = ef.stem + '*'; else if (E.length) ex.stem = E[0] + '*';
+  const mlKeyOf = w => { const cs = Array.from(w); for (let k = 3; k < cs.length; k++) if (!ML_SIGN.test(cs[k]) && cs[k - 1] !== '\u0D4D') return cs.slice(0, k).join(''); return ''; };
+  const mf = bestFamily(M.slice(0, 400), ml, mlKeyOf, 2);
+  if (mf) { ex.mlStem = mf.stem + '*'; ex.forms = mf.forms.slice(0, 3); ex.head = mf.forms.slice().sort((a, b) => cpLen(a) - cpLen(b))[0]; }
+  else if (M.length) ex.mlStem = M[0] + '*';
+  EXC = {key, ex};
+  return ex;
+}
+const exAlt = ex => ex.en[0] + ' | ' + ex.en[1] + ' | ' + ex.ml[0];
 
 /* ================= corpus helpers ================= */
 function prep(d){
@@ -938,7 +991,8 @@ function emptyView(title, text){
   return head(title, text) + '<div class="panel empty"><p>No responses match the current filters.</p><div class="actions"><button data-act="flt-clear">Clear filters</button></div></div>';
 }
 function groupSelect(id, val){
-  return '<select id="' + id + '" data-groupsel>' + S.groups.map(g => '<option' + (g === val ? ' selected' : '') + '>' + esc(g) + '</option>').join('') + '<option value="__new">New group…</option></select>';
+  const gs = S.groups.length ? S.groups : ['Ungrouped'];
+  return '<select id="' + id + '" data-groupsel>' + gs.map(g => '<option' + (g === val ? ' selected' : '') + '>' + esc(g) + '</option>').join('') + '<option value="__new">New group…</option></select>';
 }
 
 /* ================= views ================= */
@@ -970,7 +1024,7 @@ function typePanel(){
   return '<h3>Type or paste responses</h3><p class="hint">For answers from paper forms. Malayalam typed with any keyboard is normalised, so old and new chillu forms count as the same word.</p>' +
     '<div class="grid3"><label>Participant ID<input id="tPid" value="' + esc(t.pid) + '" placeholder="For example P07"></label>' +
     '<label>Group' + groupSelect('tGroup', t.group) + '</label>' +
-    '<label>Item or question<input id="tItem" list="itemList" value="' + esc(t.item) + '" placeholder="For example Q12 Media and drinking"></label>' +
+    '<label>Item or question<input id="tItem" list="itemList" value="' + esc(t.item) + '" placeholder="For example Q3, or the question text"></label>' +
     '<label>Language<select id="tLang"><option value="">Detect automatically</option>' + LANGS.slice(0, 4).map(l => '<option' + (t.lang === l ? ' selected' : '') + '>' + l + '</option>').join('') + '</select></label>' +
     '<label>Mode<select id="tMode">' + MODES.map(m => '<option' + (t.mode === m ? ' selected' : '') + '>' + m + '</option>').join('') + '</select></label></div>' +
     '<label class="block">Response text<textarea id="tText" rows="6" placeholder="Type the answer exactly as it was written"></textarea></label>' +
@@ -1052,7 +1106,8 @@ function formsOf(head){ return Object.keys(S.lemmaMap).filter(k => S.lemmaMap[k]
 function hasForms(head){ for (const k in S.lemmaMap) if (S.lemmaMap[k] === head) return true; return false; }
 
 R.kwic = function(){
-  const title = 'Concordance', text = 'Every occurrence of a word or phrase with the words around it. Use * for any ending (കുടി* or addict*), ? for one letter, and | between alternatives (illness | disease | രോഗം). Click a line to read the full response.';
+  const ex = examples();
+  const title = 'Concordance', text = 'Every occurrence of a word or phrase with the words around it. Use * for any ending (' + esc(ex.mlStem) + ' or ' + esc(ex.stem) + '), ? for one letter, and | between alternatives (' + esc(exAlt(ex)) + '). Click a line to read the full response.';
   const docs = filtered(); if (!docs.length) return emptyView(title, text);
   const o = S.ui.kwic;
   let lines = [], err = '';
@@ -1066,7 +1121,7 @@ R.kwic = function(){
     '<label>Words each side<select id="kwSpan">' + [3,5,7,10,15,20].map(v => '<option' + (+o.span === v ? ' selected' : '') + '>' + v + '</option>').join('') + '</select></label>' +
     '<label>Sort by<select id="kwSort">' + [['doc','Response order'],['group','Group'],['L1','Word to the left'],['R1','Word to the right'],['node','Matched form']].map(x => '<option value="' + x[0] + '"' + (o.sort === x[0] ? ' selected' : '') + '>' + x[1] + '</option>').join('') + '</select></label>' +
     '<button class="primary" data-act="kwic-run">Search</button></div>' +
-    '<div class="bar"><label style="flex:1 1 220px">Only lines with this word nearby (optional)<input id="kwNear" data-enter="kwic-run" value="' + esc(o.near) + '" placeholder="For example shame | നാണക്കേട്*"></label>' +
+    '<div class="bar"><label style="flex:1 1 220px">Only lines with this word nearby (optional)<input id="kwNear" data-enter="kwic-run" value="' + esc(o.near) + '" placeholder="For example ' + esc(ex.en[1] + ' | ' + ex.mlStem) + '"></label>' +
     '<label>Within<select id="kwNearSpan">' + [2,3,5,8,10].map(v => '<option' + (+o.nearSpan === v ? ' selected' : '') + '>' + v + '</option>').join('') + '</select></label>' +
     '<label class="check" style="margin-bottom:6px"><input type="checkbox" id="kwRegex"' + (o.regex ? ' checked' : '') + '> Regular expression</label></div>' +
     (S.ui.groupOn ? '<p class="hint">Grouped word forms are included, so searching a headword also finds its other forms.</p>' : '') + '</div>';
@@ -1081,11 +1136,12 @@ R.kwic = function(){
 };
 
 R.colloc = function(){
-  const title = 'Collocates', text = 'Words that keep company with a search word inside a window of words on each side. Strong collocates show how people frame a topic, for example which words sit next to കുടിയൻ or addict.';
+  const ex = examples();
+  const title = 'Collocates', text = 'Words that keep company with a search word inside a window of words on each side. Strong collocates show how people frame a topic, for example which words sit next to ' + esc(ex.en[0]) + ' or ' + esc(ex.ml[0]) + '.';
   const docs = filtered(); if (!docs.length) return emptyView(title, text);
   const o = S.ui.colloc;
   const controls = '<div class="panel"><div class="bar">' +
-    '<label style="flex:1 1 240px">Search word<input id="coQ" data-enter="colloc-run" value="' + esc(o.q) + '" placeholder="For example കുടിയൻ | drunk*"></label>' +
+    '<label style="flex:1 1 240px">Search word<input id="coQ" data-enter="colloc-run" value="' + esc(o.q) + '" placeholder="For example ' + esc(ex.ml[0] + ' | ' + ex.stem) + '"></label>' +
     '<label>Words to the left<select id="coL">' + [0,1,2,3,4,5,8,10].map(v => '<option' + (+o.L === v ? ' selected' : '') + '>' + v + '</option>').join('') + '</select></label>' +
     '<label>Words to the right<select id="coR">' + [0,1,2,3,4,5,8,10].map(v => '<option' + (+o.R === v ? ' selected' : '') + '>' + v + '</option>').join('') + '</select></label>' +
     '<label>Minimum together<input type="number" id="coMin" min="1" value="' + (+o.min || 1) + '" style="width:90px"></label>' +
@@ -1102,7 +1158,7 @@ R.colloc = function(){
 };
 
 R.key = function(){
-  const title = 'Keyness', text = 'Words one part of the data uses far more (or less) than another, tested with log-likelihood. Use it to compare how each group talks: for example disease words in healthcare providers against moral words in families.';
+  const title = 'Keyness', text = 'Words one part of the data uses far more (or less) than another, tested with log-likelihood. Use it to compare how groups, languages, questions or modes differ: the words that set one group apart from the rest.';
   const o = S.ui.key, base = filtered(o.dim);
   if (!base.length) return emptyView(title, text);
   const vals = valuesOf(o.dim, base);
@@ -1131,12 +1187,12 @@ R.key = function(){
 };
 
 R.lex = function(){
-  const title = 'Word lists', text = 'Your own categories of words, such as stigma labels, disease terms or recovery language, counted across groups. Each line is one term; * matches any ending and multi-word phrases work too.';
+  const title = 'Word lists', text = 'Your own categories of words, such as the vocabulary of one stance, emotion or topic, counted across groups. Each line is one term; * matches any ending and multi-word phrases work too.';
   const o = S.ui.lex, L = S.lexicons;
   if (o.sel >= L.length) o.sel = Math.max(0, L.length - 1);
   const cur = L[o.sel];
   const side = '<div class="lexlist">' + (L.length ? L.map((x, i) => '<button class="' + (i === o.sel ? 'on' : '') + '" data-act="lex-sel" data-i="' + i + '"><span class="swatch" style="--c:' + esc(x.color) + '"></span>' + esc(x.name) + '<span class="n">' + lexTerms(x).length + '</span></button>').join('') : '<p class="hint">No word lists yet.</p>') +
-    '<div class="actions"><button data-act="lex-new">New list</button><button data-act="lex-starter">Add starter lists</button></div>' +
+    '<div class="actions"><button data-act="lex-new">New list</button><button data-act="lex-starter" title="Four example lists from a study of alcohol addiction and stigma">Add example lists (addiction study)</button></div>' +
     '<div class="actions"><button data-act="lex-export"' + (L.length ? '' : ' disabled') + '>Export lists</button><label class="filepick" style="padding:6px 10px">Import lists<input type="file" id="lexFile" accept=".json"></label></div></div>';
   const editor = cur ? '<div class="panel"><div class="grid2"><label>Name<input id="lxName" value="' + esc(cur.name) + '"></label><label>Colour<input type="color" id="lxColor" value="' + esc(cur.color) + '" style="height:36px;padding:2px"></label></div>' +
     '<label class="block">Terms, one per line<textarea id="lxTerms" rows="9">' + esc(cur.terms) + '</textarea></label>' +
@@ -1144,7 +1200,7 @@ R.lex = function(){
     '<p class="hint">Starter lists are a first draft. Review every term before using the counts in your analysis; check concordance lines for words with more than one meaning.</p></div>' : '';
   const docs = filtered();
   let results = '';
-  if (!L.length) results = '<div class="panel empty"><p>Create a list or add the starter lists to begin.</p></div>';
+  if (!L.length) results = '<div class="panel empty"><p>Create a list to begin. The example lists show how lists work, using terms from a study of alcohol addiction and stigma.</p></div>';
   else if (!docs.length) results = '<div class="panel empty"><p>' + (S.docs.length ? 'No responses match the current filters.' : 'Add responses to see counts.') + '</p></div>';
   else {
     const gs = groupsIn(docs), counts = L.map(x => lexCount(docs, x)), m = o.measure;
@@ -1195,10 +1251,10 @@ R.disp = function(){
 };
 
 R.cooc = function(){
-  const title = 'Co-occurrence', text = 'How often your chosen words appear together in the same response, the same sentence or within a few words. Useful for seeing which ideas travel together, such as shame with family or treatment with hope.';
+  const title = 'Co-occurrence', text = 'How often your chosen words appear together in the same response, the same sentence or within a few words. Useful for seeing which ideas travel together, such as ' + esc(examples().en[0]) + ' with ' + esc(examples().en[1]) + '.';
   const docs = filtered(); if (!docs.length) return emptyView(title, text);
   const o = S.ui.cooc;
-  const controls = '<div class="panel"><div class="grid2"><label>Words or patterns, one per line (up to 20)<textarea id="ccTerms" rows="7" placeholder="shame*\nfamily | കുടുംബ*\ntreatment | ചികിത്സ*">' + esc(o.terms) + '</textarea></label>' +
+  const controls = '<div class="panel"><div class="grid2"><label>Words or patterns, one per line (up to 20)<textarea id="ccTerms" rows="7" placeholder="' + (ex => esc(ex.stem + '\n' + ex.en[1] + ' | ' + ex.mlStem + '\n' + ex.en[2]))(examples()) + '">' + esc(o.terms) + '</textarea></label>' +
     '<div><label>Count pairs that appear in<select id="ccUnit">' + [['doc','The same response'],['sent','The same sentence'],['5','Within 5 words'],['10','Within 10 words']].map(x => '<option value="' + x[0] + '"' + (o.unit === x[0] ? ' selected' : '') + '>' + x[1] + '</option>').join('') + '</select></label>' +
     '<label style="margin-top:10px">Measure<select id="ccMeasure"><option value="count"' + (o.measure === 'count' ? ' selected' : '') + '>Count</option><option value="jac"' + (o.measure === 'jac' ? ' selected' : '') + '>Jaccard (overlap from 0 to 1)</option></select></label>' +
     '<div class="actions"><button class="primary" data-act="cooc-run">Build matrix</button><button data-act="cooc-top">Use top 10 words</button></div></div></div></div>';
@@ -1222,7 +1278,8 @@ R.cooc = function(){
 };
 
 R.forms = function(){
-  const title = 'Word forms & stopwords', text = 'Malayalam attaches endings to words, so കുടിയൻ, കുടിയന്റെ and കുടിയനെ count as three words unless you group them. Group the forms you consider the same word, and decide which common words to leave out of counts.';
+  const ex = examples(), fm = ex.forms.length >= 3 ? ex.forms.slice(0, 2).join(', ') + ' and ' + ex.forms[2] : ex.forms.join(' and ');
+  const title = 'Word forms & stopwords', text = 'Malayalam attaches endings to words, so ' + esc(fm) + ' count as ' + (ex.forms.length >= 3 ? 'three' : 'two') + ' words unless you group them. Group the forms you consider the same word, and decide which common words to leave out of counts.';
   const o = S.ui.forms;
   const inv = {}; for (const k in S.lemmaMap) (inv[S.lemmaMap[k]] = inv[S.lemmaMap[k]] || []).push(k);
   const q = normalizeText(o.q).toLowerCase().trim();
@@ -1235,7 +1292,7 @@ R.forms = function(){
   return head(title, text) +
     '<div class="panel"><h3>Suggested groupings</h3>' + sugg + '</div>' +
     '<div class="panel"><div class="bar" style="align-items:center"><h3 style="margin:0">Your grouped words (' + fmt(Object.keys(inv).length) + ')</h3><input type="search" id="fmQ" value="' + esc(o.q) + '" placeholder="Find a word"><span class="spacer"></span><button data-act="fm-export"' + (heads.length ? '' : ' disabled') + '>Download CSV</button></div>' +
-    '<div class="bar"><label style="flex:1 1 260px">Forms, separated by spaces or commas<input id="fmForms" placeholder="കുടിയന്റെ കുടിയനെ"></label><label>Headword<input id="fmHead" placeholder="കുടിയൻ"></label><button data-act="fm-add">Group them</button></div>' +
+    '<div class="bar"><label style="flex:1 1 260px">Forms, separated by spaces or commas<input id="fmForms" placeholder="' + esc(ex.forms.slice(0, 2).join(' ')) + '"></label><label>Headword<input id="fmHead" placeholder="' + esc(ex.head) + '"></label><button data-act="fm-add">Group them</button></div>' +
     (heads.length ? '<div class="tablewrap"><table class="t"><thead><tr><th>Headword</th><th>Counted with it</th></tr></thead><tbody>' + heads.slice(0, 400).map(h => '<tr><td class="w">' + esc(h) + '</td><td>' + inv[h].sort().map(f => '<span class="chip">' + esc(f) + '<button data-act="fm-un" data-form="' + esc(f) + '" aria-label="Ungroup ' + esc(f) + '">×</button></span>').join('') + '</td></tr>').join('') + '</tbody></table></div>' : '<p class="hint">No grouped words yet.</p>') + '</div>' +
     '<div class="panel"><h3>Stopwords</h3><p class="hint">Common words left out of counts when Remove stopwords is on. Negations (no, not, nor, ഇല്ല, അല്ല, illa, alla) are deliberately not on these lists, because they matter when reading attitudes. Separate words with spaces or new lines.</p>' +
     '<div class="grid3"><label>English (' + S.stop.en.length + ')<textarea id="stEn" rows="8">' + esc(S.stop.en.join(' ')) + '</textarea></label><label>Malayalam (' + S.stop.ml.length + ')<textarea id="stMl" rows="8">' + esc(S.stop.ml.join(' ')) + '</textarea></label><label>Manglish (' + S.stop.mg.length + ')<textarea id="stMg" rows="8">' + esc(S.stop.mg.join(' ')) + '</textarea></label></div>' +
@@ -1928,7 +1985,7 @@ function setupCSV(name, txt){
   const textCols = headers.map((h, i) => i).filter(i => avg(i) >= 25 && !skip.test(headers[i]));
   const idCol = headers.findIndex(h => /\b(id|participant|code|serial|respondent no)\b/i.test(h));
   const gCol = headers.findIndex(h => /group|respondent type|role|assistant|model/i.test(h));
-  CSV = {name, headers, rows:data, idCol:idCol >= 0 ? idCol : null, gMode:gCol >= 0 ? 'col' : 'fixed', gCol:gCol >= 0 ? gCol : null, gFixed:S.groups[0] || 'PWLE', mode:'online', textCols, iMode:'header', iCol:null};
+  CSV = {name, headers, rows:data, idCol:idCol >= 0 ? idCol : null, gMode:gCol >= 0 ? 'col' : 'fixed', gCol:gCol >= 0 ? gCol : null, gFixed:S.groups[0] || 'Ungrouped', mode:'online', textCols, iMode:'header', iCol:null};
 }
 function parseCSV(text){
   text = String(text).replace(/^\uFEFF/, '');
