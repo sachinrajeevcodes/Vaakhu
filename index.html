@@ -5,7 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#FAFBFA">
 <title>Vaakhu – lexical analysis workbench</title>
-<script>try { if (localStorage.getItem('vaakhu-theme') === 'dark') document.documentElement.setAttribute('data-theme', 'dark'); } catch (e) {}</script>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<script>try { if (localStorage.getItem('vaakhu-theme') === 'dark') document.documentElement.setAttribute('data-theme', 'dark'); } catch (e) {}
+try { if (navigator.windowControlsOverlay && navigator.windowControlsOverlay.visible) document.documentElement.classList.add('wco'); } catch (e) {}</script>
 <style>
 :root{
   --paper:#EDF1EE; --panel:#FAFBFA; --line:#D0D9D3; --line-soft:#E4EAE6;
@@ -46,6 +50,15 @@ header.top{display:flex;align-items:center;gap:20px;padding:14px 22px;background
 .themebtn{display:inline-flex;align-items:center;justify-content:center;width:35px;height:35px;padding:0;border-radius:999px;background:var(--surface);flex:none}
 .themebtn .sun,:root[data-theme="dark"] .themebtn .moon{display:none}
 :root[data-theme="dark"] .themebtn .sun{display:block}
+
+/* installed desktop app: the window's title bar becomes app space, and the theme toggle sits beside the window buttons */
+.titlebar{display:none}
+html.wco body{padding-top:env(titlebar-area-height,36px)}
+html.wco .titlebar{display:flex;align-items:center;gap:8px;position:fixed;z-index:60;top:env(titlebar-area-y,0px);left:env(titlebar-area-x,0px);width:env(titlebar-area-width,100%);height:env(titlebar-area-height,36px);padding:0 4px 0 12px;background:var(--panel);border-bottom:1px solid var(--line-soft);font-size:12px;color:var(--muted);-webkit-app-region:drag;app-region:drag;user-select:none}
+html.wco .titlebar .themebtn{margin-left:auto;width:28px;height:28px;min-width:0;min-height:0;border-color:transparent;background:transparent;-webkit-app-region:no-drag;app-region:no-drag}
+html.wco .titlebar .themebtn:hover{background:var(--hover)}
+html.wco .titlebar .icon{width:18px;height:18px}
+html.wco .filters{top:env(titlebar-area-height,36px)}
 
 /* filters */
 .filters{position:sticky;top:0;z-index:5;display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;padding:8px 22px;background:var(--paper);border-bottom:1px solid var(--line)}
@@ -327,6 +340,8 @@ nav.side .navlabel{font-size:12px;color:var(--muted);padding:12px 12px 2px}
   .codehead .seg button{flex:1 1 50%}
   .codehead > button{flex:1 1 40%;width:auto}
   .reader{font-size:18px;padding:14px;border-radius:12px}
+  html.wco header.top{top:env(titlebar-area-height,36px)}
+  html.wco nav.side{top:env(titlebar-area-height,36px)}
   .side-panel .selbox{position:fixed;left:0;right:0;bottom:0;z-index:30;margin:0;border-radius:18px 18px 0 0;border-width:1px 0 0;box-shadow:0 -10px 28px rgba(var(--shadow-rgb),.16);padding:12px 14px calc(12px + env(safe-area-inset-bottom,0px))}
   .sb-desk{display:none}
   .sb-mob{display:block}
@@ -356,6 +371,7 @@ nav.side .navlabel{font-size:12px;color:var(--muted);padding:12px 12px 2px}
 </style>
 </head>
 <body>
+<div class="titlebar" id="titlebar"><span aria-hidden="true">Vaakhu</span></div>
 <header class="top">
   <div class="brand">
     <span class="mark" lang="ml" aria-hidden="true">വാക്ക്</span>
@@ -586,6 +602,13 @@ function setTheme(dark){
   if (dark) document.documentElement.setAttribute('data-theme', 'dark'); else document.documentElement.removeAttribute('data-theme');
   try { if (dark) localStorage.setItem(THEME_KEY, 'dark'); else localStorage.removeItem(THEME_KEY); } catch (e) {}
   syncTheme(); render();
+}
+// In the installed desktop app with the title-bar layout, the toggle moves into the title bar.
+function syncTitlebar(){
+  const o = navigator.windowControlsOverlay, on = !!(o && o.visible), b = $('#themeBtn');
+  document.documentElement.classList.toggle('wco', on);
+  const home = on ? $('#titlebar') : $('header.top');
+  if (b && home && b.parentNode !== home) home.appendChild(b);
 }
 // Group and code colours drawn in SVG charts, shown lighter in dark mode (matches the CSS colour-mix for dots and swatches).
 function scr(c){
@@ -2012,6 +2035,8 @@ function parseCSV(text){
 function start(){
   load();
   syncTheme();
+  syncTitlebar();
+  if (navigator.windowControlsOverlay) navigator.windowControlsOverlay.addEventListener('geometrychange', syncTitlebar);
   document.addEventListener('click', onClick);
   document.addEventListener('change', onChange);
   document.addEventListener('input', onInput);
