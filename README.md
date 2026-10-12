@@ -19,6 +19,8 @@ It was built for a doctoral study on alcohol addiction and its portrayal in Mala
 
 **Online:** open the link above in Chrome, Edge or Safari. On a phone, use Share → Add to Home Screen to get an app icon.
 
+**As a desktop app:** in Chrome or Edge, click the install icon in the address bar to install Vaakhu in its own window. The light/dark toggle then sits in the title bar, next to the minimise, maximise and close buttons. An installed copy still loads from the link above, so it needs an internet connection to open.
+
 **Offline:** download `index.html` and open it in Chrome or Edge on your computer.
 
 File previews, such as the iPhone Files app, switch JavaScript off and cannot run Vaakhu. Open it in a browser instead.
